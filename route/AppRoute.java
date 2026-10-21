@@ -7,6 +7,7 @@
 // Exits by itself after Bluetooth has been gone 2 min, or the music app has been silent 10 min.
 //   If this process dies, the rule dies with it -> everything falls back to Bluetooth (never silence).
 // Usage: CLASSPATH=/data/local/tmp/approute.dex app_process /system/bin AppRoute <musicUid,musicUid> <uid> [uid...]
+//        CLASSPATH=/data/local/tmp/approute.dex app_process /system/bin AppRoute multifocus on|off|state
 import android.media.*;
 import android.os.Looper;
 import java.lang.reflect.*;
@@ -17,6 +18,7 @@ public class AppRoute {
     static final java.util.HashSet<Integer> routed = new java.util.HashSet<>();
 
     public static void main(String[] a) throws Exception {
+        if (a.length > 0 && a[0].equals("multifocus")) { multiFocusCmd(a.length > 1 ? a[1] : "state"); return; }
         Looper.prepareMainLooper();
         java.util.HashSet<Integer> music = new java.util.HashSet<>();
         for (String m : a[0].split(",")) if (!m.isEmpty()) music.add(Integer.parseInt(m));
@@ -37,6 +39,7 @@ public class AppRoute {
             if (musicPlaying(music)) lastMusic = now;
             boolean want = bt && spk != null && now - lastMusic < 15000 && !inCall();   // drop the rule during calls
             if (want && policy == null) { try { register(spk); log("music on bt -> rule on"); } catch (Throwable e) { log("register fail " + e); policy = null; } }
+            if (policy != null) multiFocusOnce(music);
             if (!want && policy != null) { unregister(); log((bt ? "music stopped" : "bt off") + " -> rule off"); }
             if (now - lastBt > 120000 || now - Math.max(lastMusic, startAt) > 600000) {
                 if (policy != null) unregister();
@@ -56,10 +59,54 @@ public class AppRoute {
             for (Object c : l) {
                 int uid = (Integer) c.getClass().getMethod("getClientUid").invoke(c);
                 int st = (Integer) c.getClass().getMethod("getPlayerState").invoke(c);
-                if (st == 2 /* STARTED */ && music.contains(uid)) return true;
+                if (st == 2 /* STARTED */ && (music == null || music.contains(uid))) return true;
             }
         } catch (Throwable e) { log("musicPlaying err " + e); }
         return false;
+    }
+
+    // Multi audio focus (built into Android 11+, off by default): without it, a video in another app takes the
+    //   audio focus and the music app pauses itself; routing alone can't prevent that. Switched on the first time
+    //   the rule goes on. Android saves it, so it survives reboot. Calls and alarms still pause everything.
+    //   Switching it (either way) makes Android send one focus loss to the current holder, so the music pauses
+    //   once: resume it. The app's "off" button writes NO_MF, so it is never switched back on automatically.
+    static final String NO_MF = "/data/local/tmp/approute.nomf";
+    static boolean mfChecked = false;
+    static void multiFocusOnce(java.util.Set<Integer> music) {
+        if (mfChecked) return;
+        mfChecked = true;
+        if (new java.io.File(NO_MF).exists() || "1".equals(sh("settings get system multi_audio_focus_enabled"))) return;
+        setMultiFocus(true, music);
+    }
+    static void multiFocusCmd(String c) {
+        if (c.equals("on")) { new java.io.File(NO_MF).delete(); setMultiFocus(true, null); }
+        else if (c.equals("off")) {
+            try { new java.io.File(NO_MF).createNewFile(); } catch (Throwable e) { log("nomf write fail " + e); }
+            setMultiFocus(false, null);
+        }
+        System.out.println("multifocus=" + ("1".equals(sh("settings get system multi_audio_focus_enabled")) ? "on" : "off"));
+    }
+    static void setMultiFocus(boolean on, java.util.Set<Integer> music) {
+        boolean was = musicPlaying(music);
+        try {
+            Object as = Class.forName("android.media.IAudioService$Stub").getMethod("asInterface", android.os.IBinder.class)
+                .invoke(null, Class.forName("android.os.ServiceManager").getMethod("getService", String.class).invoke(null, "audio"));
+            as.getClass().getMethod("setMultiAudioFocusEnabled", boolean.class).invoke(as, on);
+        } catch (Throwable e) { log("multi focus fail " + e); return; }
+        sh("settings put system multi_audio_focus_enabled " + (on ? 1 : 0));
+        log("multi focus " + (on ? "on" : "off"));
+        for (int i = 0; was && i < 8; i++) {
+            try { Thread.sleep(1000); } catch (InterruptedException e) { return; }
+            if (!musicPlaying(music)) { sh("cmd media_session dispatch play"); log("music paused by the switch -> resumed"); return; }
+        }
+    }
+    static String sh(String cmd) {
+        try {
+            Process p = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
+            String out = new java.io.BufferedReader(new java.io.InputStreamReader(p.getInputStream())).readLine();
+            p.waitFor();
+            return out == null ? "" : out.trim();
+        } catch (Throwable e) { return ""; }
     }
 
     // Volume keys: while Bluetooth is connected, pressing volume in a speaker-routed app should change the

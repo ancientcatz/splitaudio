@@ -24,18 +24,38 @@ object Route {
     fun running(): Boolean = ask("state") != null
     fun ruleOn(): Boolean = ask("state") == "on"
 
+    /** 把 assets 寫到 /data/local/tmp（先寫 .new 再改名：正在跑的 AppRoute 還拿著舊檔，不能原地覆蓋）。成功回 null。 */
+    private fun deploy(ctx: Context): String? {
+        for (n in listOf("approute.dex", "approute.sh")) {
+            val data = ctx.assets.open(n).use { it.readBytes() }
+            val f = "/data/local/tmp/$n"
+            val a = Shz.run("cat > $f.new && chmod 644 $f.new && mv -f $f.new $f", 15, data)
+            if (a.first != 0) return "deploy_fail:${a.first} ${a.second.take(60)}"
+        }
+        return null
+    }
+
     /** 部署＋啟動（要在背景執行緒叫）。已在跑就不動。 */
     @Synchronized fun start(ctx: Context): String {
         if (running()) return "already".also { lastStart = it }
-        val dex = ctx.assets.open("approute.dex").use { it.readBytes() }
-        val sh = ctx.assets.open("approute.sh").use { it.readBytes() }
-        val a = Shz.run("cat > /data/local/tmp/approute.dex && chmod 644 /data/local/tmp/approute.dex", 15, dex)
-        if (a.first != 0) return "deploy_fail:${a.first} ${a.second.take(60)}".also { lastStart = it }
-        val b = Shz.run("cat > /data/local/tmp/approute.sh", 15, sh)
-        if (b.first != 0) return "deploy_fail:${b.first} ${b.second.take(60)}".also { lastStart = it }
+        deploy(ctx)?.let { return it.also { lastStart = it } }
         val r = Shz.run("sh /data/local/tmp/approute.sh start", 30)
         return ("start rc=${r.first} " + r.second.trim().lines().lastOrNull().orEmpty().take(80)).also { lastStart = it }
     }
 
     fun stop(): String = Shz.run("sh /data/local/tmp/approute.sh stop", 15).second.trim()
+
+    /** 「開影片不打斷音樂」（Android 內建 multi audio focus）：這個系統設定 App 讀不到，經 Shizuku 讀。
+     *  回 "on"／"off"／"off_user"（用戶按過關＝分流不會自動打開）／null（讀不到） */
+    fun multiFocusState(): String? {
+        val r = Shz.run("settings get system multi_audio_focus_enabled; [ -e /data/local/tmp/approute.nomf ] && echo nomf", 10)
+        if (r.first < 0 || r.second.isBlank()) return null
+        return if (r.second.trim().startsWith("1")) "on" else if (r.second.contains("nomf")) "off_user" else "off"
+    }
+
+    /** 手動開／關（要在背景執行緒叫）。關＝之後分流也不會自動打開。 */
+    @Synchronized fun setMultiFocus(ctx: Context, on: Boolean): String {
+        deploy(ctx)?.let { return it }
+        return Shz.run("sh /data/local/tmp/approute.sh multifocus " + (if (on) "on" else "off"), 30).second.trim().lines().lastOrNull().orEmpty()
+    }
 }

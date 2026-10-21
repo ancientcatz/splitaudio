@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # Start/stop AppRoute on the phone (runs as the shell user, e.g. via Shizuku or adb).
-# Usage: sh /data/local/tmp/approute.sh start|stop|status
+# Usage: sh /data/local/tmp/approute.sh start|stop|status|multifocus on|off|state
 D=/data/local/tmp; LOG=$D/approute.log
 # Music apps: audio from these stays on Bluetooth; routing is active only while one of them plays.
 MUSIC="app.morphe.android.apps.youtube.music com.google.android.apps.youtube.music"
@@ -17,4 +17,6 @@ case "$1" in
     sleep 2; echo "started pid=$(pid)"; tail -2 $LOG ;;
   stop) P=$(pid); [ -n "$P" ] && kill $P; echo "stopped" ;;
   status) P=$(pid); echo "pid=${P:-none}"; tail -3 $LOG ;;
+  # "A video doesn't pause the music" (Android multi audio focus); see AppRoute.java
+  multifocus) CLASSPATH=$D/approute.dex app_process /system/bin AppRoute multifocus "${2:-state}" 2>&1 | tee -a $LOG | tail -1 ;;
 esac

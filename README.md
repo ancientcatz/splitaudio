@@ -18,6 +18,16 @@ Samsung-only). SplitAudio keeps **the music app on Bluetooth and sends every oth
   Music stopped for 15 s, or Bluetooth gone → the rule is removed and audio behaves normally. Also removed during calls.
 - **音量鍵**：在走喇叭的 App 畫面按＝調手機喇叭（畫面提示「手機喇叭音量 xx%」）；在音樂 App／桌面按＝照常調藍牙。
   **Volume keys**: in a speaker-routed app they change the phone speaker volume; in the music app / home screen they change Bluetooth as usual.
+- **開影片不打斷音樂**：Android 預設「別的 App 一開影片，音樂 App 就自己暫停」（播放權只給一個 App），光分流擋不住。
+  第一次分流時會打開 Android 內建的「多個 App 同時播放」（multi audio focus，Android 11 起內建、預設關），打開那一下音樂會停一秒，會自動按回播放。
+  這是系統設定、重開機仍有效；來電、鬧鐘照樣會讓全部暫停。不要的話在 App 按「開／關：開影片不打斷音樂」，之後就不會再自動打開。
+  **移除 App 前想還原，先按一次關。**
+  **A video doesn't pause the music**: by default, when another app starts a video it takes the audio focus and the music
+  app pauses itself — routing alone can't stop that. The first time routing turns on, SplitAudio enables Android's built-in
+  *multi audio focus* (Android 11+, off by default); the music pauses for a second at that moment and is resumed
+  automatically. It is a system setting, so it survives reboot; calls and alarms still pause everything. Don't want it? Tap
+  "開／關：開影片不打斷音樂" (toggle) in the app and it won't be switched on again. **To restore the default before
+  uninstalling, switch it off first.**
 - **故障安全**：路由小程式一旦結束，規則跟著消失＝全部回到藍牙，不會變成沒聲音。
   **Fail-safe**: if the helper process dies, its rule dies with it — audio falls back to Bluetooth, never to silence.
 

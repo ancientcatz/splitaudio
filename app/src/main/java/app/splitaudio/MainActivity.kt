@@ -10,9 +10,10 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 
-/** 狀態＋設定頁：Shizuku 授權、無障礙（音量鍵）、手動啟動／停止分流 */
+/** 狀態＋設定頁：Shizuku 授權、無障礙（音量鍵）、手動啟動／停止分流、開影片不打斷音樂 */
 class MainActivity : Activity() {
     private lateinit var st: TextView
+    @Volatile private var mf: String? = null
 
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
@@ -28,6 +29,7 @@ class MainActivity : Activity() {
         btn("② 開啟無障礙（音量鍵調手機喇叭）") { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
         btn("立即啟動分流") { Thread { Route.start(this) }.start() }
         btn("停止分流") { Thread { Route.stop() }.start() }
+        btn("開／關：開影片不打斷音樂") { val on = mf != "on"; Thread { Route.lastStart = "影片不打斷音樂 → " + Route.setMultiFocus(this, on) }.start() }
         btn("重新整理") { }
         setContentView(ScrollView(this).apply { addView(root) })
     }
@@ -39,9 +41,11 @@ class MainActivity : Activity() {
             Thread.sleep(600)
             val acc = (Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: "").contains("$packageName/")
             val s = Route.ask("state")
+            mf = if (Shz.granted()) Route.multiFocusState() else null
             val txt = "Shizuku：" + (if (!Shz.alive()) "沒在跑" else if (Shz.granted()) "已授權 ✓" else "未授權") +
                 "\n無障礙（音量鍵）：" + (if (acc) "已開 ✓" else "未開") +
                 "\n分流：" + (when (s) { "on" -> "分流中 ✓"; "off" -> "路由在跑，等音樂播放"; else -> "沒在跑（藍牙＋音樂播放時自動啟動）" }) +
+                "\n開影片不打斷音樂：" + (when (mf) { "on" -> "已開 ✓"; "off" -> "未開（第一次分流時自動打開）"; "off_user" -> "已關（你按的，不會自動打開）"; else -> "—" }) +
                 "\n上次啟動：" + Route.lastStart
             runOnUiThread { st.text = txt }
         }.start()
