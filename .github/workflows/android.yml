@@ -34,6 +34,8 @@ jobs:
         with:
           gradle-version: "8.9"
 
+      # CI builds a debug APK and an unsigned release APK. Releases only carry the release APK signed with the developer's key
+      # on the developer's own machine (the key never goes to CI), uploaded by hand.
       - name: Build debug APK
         run: gradle --no-daemon --console=plain assembleDebug
 
@@ -42,8 +44,10 @@ jobs:
           name: splitaudio-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Release (on tag)
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+      - name: Build release APK (unsigned; signed later on the developer's machine)
+        run: gradle --no-daemon --console=plain assembleRelease
+
+      - uses: actions/upload-artifact@v4
         with:
-          files: app/build/outputs/apk/debug/app-debug.apk
+          name: splitaudio-release-unsigned
+          path: app/build/outputs/apk/release/app-release-unsigned.apk

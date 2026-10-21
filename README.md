@@ -57,6 +57,9 @@ Default music app = YouTube Music (plus the Morphe-patched package).
   the music app has been silent for 10 min.
 
 ## 安裝 / Install
+> 從 0.2.1 起改用正式金鑰簽名；裝過更早測試版的要先解除安裝再裝。
+> Since 0.2.1 the APK is signed with a release key; if you installed an earlier test build, uninstall it first.
+
 1. 安裝並啟動 [Shizuku](https://shizuku.rikka.app/)（無線偵錯啟動即可）。Install and start Shizuku.
 2. 從 [Releases](../../releases) 下載 APK 安裝。Install the APK from Releases.
 3. 打開 SplitAudio：按「① Shizuku 授權」；想用音量鍵功能再按「② 開啟無障礙」。
