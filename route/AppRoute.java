@@ -1,0 +1,166 @@
+// AppRoute: keep the music app on Bluetooth, send every other app's audio to the phone speaker.
+// How: a process running as the shell user holds MODIFY_AUDIO_ROUTING, so it can register a system
+//   AudioPolicy with RENDER mixes whose rule is RULE_MATCH_UID (the listed app uids) -> built-in speaker.
+//   Some OEM ROMs ignore an app's own setPreferredDevice(), but a system routing rule is honoured.
+// The rule is only installed while Bluetooth is connected AND the music app is playing (kept 15 s after
+//   the music stops so track changes don't flicker). Otherwise it is removed and audio behaves normally.
+// Exits by itself after Bluetooth has been gone 2 min, or the music app has been silent 10 min.
+//   If this process dies, the rule dies with it -> everything falls back to Bluetooth (never silence).
+// Usage: CLASSPATH=/data/local/tmp/approute.dex app_process /system/bin AppRoute <musicUid,musicUid> <uid> [uid...]
+import android.media.*;
+import android.os.Looper;
+import java.lang.reflect.*;
+
+public class AppRoute {
+    static Object policy = null;
+    static int[] uids;
+    static final java.util.HashSet<Integer> routed = new java.util.HashSet<>();
+
+    public static void main(String[] a) throws Exception {
+        Looper.prepareMainLooper();
+        java.util.HashSet<Integer> music = new java.util.HashSet<>();
+        for (String m : a[0].split(",")) if (!m.isEmpty()) music.add(Integer.parseInt(m));
+        uids = new int[a.length - 1];
+        for (int i = 1; i < a.length; i++) uids[i - 1] = Integer.parseInt(a[i]);
+        for (int u : uids) routed.add(u);
+        log("start music=" + music + " video=" + java.util.Arrays.toString(uids));
+        Thread vt = new Thread(AppRoute::volServer); vt.setDaemon(true); vt.start();
+        long now = System.currentTimeMillis(), lastMusic = 0, lastBt = now, startAt = now;
+        while (true) {
+            now = System.currentTimeMillis();
+            AudioDeviceInfo spk = null; boolean bt = false;
+            for (AudioDeviceInfo d : outputs()) {
+                if (d.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) spk = d;
+                if (d.getType() == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || d.getType() == 26 /* BLE_HEADSET */ || d.getType() == 27 /* BLE_SPEAKER */) bt = true;
+            }
+            if (bt) lastBt = now;
+            if (musicPlaying(music)) lastMusic = now;
+            boolean want = bt && spk != null && now - lastMusic < 15000 && !inCall();   // drop the rule during calls
+            if (want && policy == null) { try { register(spk); log("music on bt -> rule on"); } catch (Throwable e) { log("register fail " + e); policy = null; } }
+            if (!want && policy != null) { unregister(); log((bt ? "music stopped" : "bt off") + " -> rule off"); }
+            if (now - lastBt > 120000 || now - Math.max(lastMusic, startAt) > 600000) {
+                if (policy != null) unregister();
+                log(now - lastBt > 120000 ? "bt gone 2min -> exit" : "no music 10min -> exit");
+                System.exit(0);
+            }
+            Thread.sleep(2000);
+        }
+    }
+
+    // Is a music app playing right now? (with MODIFY_AUDIO_ROUTING we can see the uid of every player)
+    static boolean musicPlaying(java.util.Set<Integer> music) {
+        try {
+            Object as = Class.forName("android.media.IAudioService$Stub").getMethod("asInterface", android.os.IBinder.class)
+                .invoke(null, Class.forName("android.os.ServiceManager").getMethod("getService", String.class).invoke(null, "audio"));
+            java.util.List<?> l = (java.util.List<?>) as.getClass().getMethod("getActivePlaybackConfigurations").invoke(as);
+            for (Object c : l) {
+                int uid = (Integer) c.getClass().getMethod("getClientUid").invoke(c);
+                int st = (Integer) c.getClass().getMethod("getPlayerState").invoke(c);
+                if (st == 2 /* STARTED */ && music.contains(uid)) return true;
+            }
+        } catch (Throwable e) { log("musicPlaying err " + e); }
+        return false;
+    }
+
+    // Volume keys: while Bluetooth is connected, pressing volume in a speaker-routed app should change the
+    //   phone speaker volume. The app's accessibility service asks here. Listens on 127.0.0.1:47821 only;
+    //   one command per line: state -> on/off; vol up|down <package> -> ok <percent> / pass (not routed, or rule off)
+    static final int VOL_PORT = 47821, VOL_STEP = 10, VOL_MAX = 150;
+    static void volServer() {
+        try (java.net.ServerSocket ss = new java.net.ServerSocket(VOL_PORT, 8, java.net.InetAddress.getByName("127.0.0.1"))) {
+            while (true) {
+                try (java.net.Socket s = ss.accept()) {
+                    s.setSoTimeout(1500);
+                    String line = new java.io.BufferedReader(new java.io.InputStreamReader(s.getInputStream())).readLine();
+                    String out = volCmd(line == null ? "" : line.trim());
+                    s.getOutputStream().write((out + "\n").getBytes()); s.getOutputStream().flush();
+                } catch (Throwable e) { log("vol conn err " + e); }
+            }
+        } catch (Throwable e) { log("vol server err " + e); }
+    }
+    static String volCmd(String line) {
+        String[] p = line.split(" ");
+        if (p[0].equals("state")) return policy != null ? "on" : "off";
+        if (!p[0].equals("vol") || p.length < 3) return "err";
+        if (policy == null) return "pass";
+        try {
+            Object pm = Class.forName("android.content.pm.IPackageManager$Stub").getMethod("asInterface", android.os.IBinder.class)
+                .invoke(null, Class.forName("android.os.ServiceManager").getMethod("getService", String.class).invoke(null, "package"));
+            int uid = -1;
+            for (Method m : pm.getClass().getMethods())
+                if (m.getName().equals("getPackageUid") && m.getParameterTypes().length == 3) {
+                    uid = (Integer) m.invoke(pm, p[2], m.getParameterTypes()[1] == long.class ? (Object) 0L : (Object) 0, 0); break; }
+            if (!routed.contains(uid)) return "pass";
+            Object as = Class.forName("android.media.IAudioService$Stub").getMethod("asInterface", android.os.IBinder.class)
+                .invoke(null, Class.forName("android.os.ServiceManager").getMethod("getService", String.class).invoke(null, "audio"));
+            Class<?> ada = Class.forName("android.media.AudioDeviceAttributes"), vic = Class.forName("android.media.VolumeInfo"), vib = Class.forName("android.media.VolumeInfo$Builder");
+            Object spk = ada.getConstructor(int.class, int.class, String.class).newInstance(2, 2 /* built-in speaker */, "");
+            Object q = vib.getMethod("build").invoke(vib.getConstructor(int.class).newInstance(3 /* STREAM_MUSIC */));
+            Object cur = as.getClass().getMethod("getDeviceVolume", vic, ada, String.class).invoke(as, q, spk, "com.android.shell");
+            int idx = (Integer) vic.getMethod("getVolumeIndex").invoke(cur);
+            idx = Math.max(0, Math.min(VOL_MAX, idx + (p[1].equals("up") ? VOL_STEP : -VOL_STEP)));
+            Object b = vib.getConstructor(int.class).newInstance(3);
+            vib.getMethod("setVolumeIndex", int.class).invoke(b, idx);
+            vib.getMethod("setMinVolumeIndex", int.class).invoke(b, 0);
+            vib.getMethod("setMaxVolumeIndex", int.class).invoke(b, VOL_MAX);
+            as.getClass().getMethod("setDeviceVolume", vic, ada, String.class).invoke(as, vib.getMethod("build").invoke(b), spk, "com.android.shell");
+            return "ok " + (idx * 100 / VOL_MAX);
+        } catch (Throwable e) { log("vol err " + e); return "pass"; }
+    }
+
+    // In a call (phone or VoIP) = audio mode is not NORMAL (0)
+    static boolean inCall() {
+        try {
+            Object as = Class.forName("android.media.IAudioService$Stub").getMethod("asInterface", android.os.IBinder.class)
+                .invoke(null, Class.forName("android.os.ServiceManager").getMethod("getService", String.class).invoke(null, "audio"));
+            return ((Integer) as.getClass().getMethod("getMode").invoke(as)) != 0;
+        } catch (Throwable e) { return false; }
+    }
+
+    static AudioDeviceInfo[] outputs() throws Exception {
+        return (AudioDeviceInfo[]) AudioManager.class.getMethod("getDevicesStatic", int.class).invoke(null, AudioManager.GET_DEVICES_OUTPUTS);
+    }
+
+    // Native AudioPolicy keeps at most 20 criteria per mix (MAX_CRITERIA_PER_MIX); extra uids are silently
+    //   dropped, and with ~100+ the whole mix is ignored. So: 20 uids per mix, up to 50 mixes (1000 uids),
+    //   all in one policy. Verify with a normal app's playback, not a shell-uid test track.
+    static final int CHUNK = 20;
+    static void register(AudioDeviceInfo spk) throws Exception {
+        Class<?> pb = Class.forName("android.media.audiopolicy.AudioPolicy$Builder");
+        Object pbi = pb.getConstructor(android.content.Context.class).newInstance((Object) null);
+        int mixes = 0, n = Math.min(uids.length, CHUNK * 50);   // max 50 mixes per policy
+        if (n < uids.length) log("too many apps, routing first " + n + " of " + uids.length);
+        for (int i = 0; i < n; i += CHUNK) {
+            Class<?> rb = Class.forName("android.media.audiopolicy.AudioMixingRule$Builder");
+            Object rbi = rb.getConstructor().newInstance();
+            for (int k = i; k < Math.min(n, i + CHUNK); k++)
+                rb.getMethod("addMixRule", int.class, Object.class).invoke(rbi, 4 /* RULE_MATCH_UID */, Integer.valueOf(uids[k]));
+            Object rule = rb.getMethod("build").invoke(rbi);
+            Class<?> mb = Class.forName("android.media.audiopolicy.AudioMix$Builder");
+            Object mbi = mb.getConstructor(Class.forName("android.media.audiopolicy.AudioMixingRule")).newInstance(rule);
+            mb.getMethod("setFormat", AudioFormat.class).invoke(mbi, new AudioFormat.Builder().setSampleRate(48000)
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT).setChannelMask(AudioFormat.CHANNEL_OUT_STEREO).build());
+            mb.getMethod("setRouteFlags", int.class).invoke(mbi, 1 /* ROUTE_FLAG_RENDER */);
+            mb.getMethod("setDevice", AudioDeviceInfo.class).invoke(mbi, spk);
+            pb.getMethod("addMix", Class.forName("android.media.audiopolicy.AudioMix")).invoke(pbi, mb.getMethod("build").invoke(mbi));
+            mixes++;
+        }
+        log("mixes=" + mixes + " uids=" + n);
+        Object p = pb.getMethod("build").invoke(pbi);
+        Method reg = AudioManager.class.getDeclaredMethod("registerAudioPolicyStatic", Class.forName("android.media.audiopolicy.AudioPolicy"));
+        reg.setAccessible(true);
+        int r = (Integer) reg.invoke(null, p);
+        if (r != 0) throw new RuntimeException("registerAudioPolicy=" + r);
+        policy = p;
+    }
+
+    static void unregister() {
+        try {
+            Method un = AudioManager.class.getDeclaredMethod("unregisterAudioPolicyAsyncStatic", Class.forName("android.media.audiopolicy.AudioPolicy"));
+            un.setAccessible(true); un.invoke(null, policy);
+        } catch (Throwable e) { log("unregister fail " + e); }
+        policy = null;
+    }
+
+    static void log(String s) { System.out.println(new java.text.SimpleDateFormat("MM-dd HH:mm:ss").format(new java.util.Date()) + " " + s); }
+}

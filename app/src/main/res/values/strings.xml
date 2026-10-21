@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SplitAudio 分流</string>
+    <string name="acc_desc">藍牙只放音樂時，在其他 App 畫面按音量鍵＝調手機喇叭；音樂 App／桌面照常調藍牙。只讀前景 App 名稱，不讀畫面內容。</string>
+</resources>
