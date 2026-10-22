@@ -4,6 +4,9 @@
 //   Some OEM ROMs ignore an app's own setPreferredDevice(), but a system routing rule is honoured.
 // The rule is only installed while Bluetooth is connected AND the music app is playing (kept 15 s after
 //   the music stops so track changes don't flicker). Otherwise it is removed and audio behaves normally.
+// While another app is in a call / voice chat (audio mode not NORMAL, e.g. a camera app's talk button), Android sends
+//   media to the earpiece. Multi audio focus keeps the music playing there, so the music is paused for the duration
+//   and resumed when the mode is back to NORMAL (only if this process paused it).
 // Exits by itself after Bluetooth has been gone 2 min, or the music app has been silent 10 min.
 //   If this process dies, the rule dies with it -> everything falls back to Bluetooth (never silence).
 // Usage: CLASSPATH=/data/local/tmp/approute.dex app_process /system/bin AppRoute <musicUid,musicUid> <uid> [uid...]
@@ -14,6 +17,7 @@ import java.lang.reflect.*;
 
 public class AppRoute {
     static Object policy = null;
+    static boolean pausedForCall = false;   // music paused by us because another app entered a call / voice chat
     static int[] uids;
     static final java.util.HashSet<Integer> routed = new java.util.HashSet<>();
 
@@ -36,11 +40,19 @@ public class AppRoute {
                 if (d.getType() == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || d.getType() == 26 /* BLE_HEADSET */ || d.getType() == 27 /* BLE_SPEAKER */) bt = true;
             }
             if (bt) lastBt = now;
-            if (musicPlaying(music)) lastMusic = now;
-            boolean want = bt && spk != null && now - lastMusic < 15000 && !inCall();   // drop the rule during calls
+            boolean call = inCall();
+            if (call && !pausedForCall && bt && musicPlaying(music)) {   // e.g. a camera app's talk button: media would go to the earpiece
+                sh("cmd media_session dispatch pause"); pausedForCall = true; log("call/voice mode -> music paused");
+            }
+            if (!call && pausedForCall) {
+                pausedForCall = false;
+                if (!musicPlaying(music)) { sh("cmd media_session dispatch play"); log("call/voice mode over -> music resumed"); }
+            }
+            if (musicPlaying(music) || pausedForCall) lastMusic = now;   // a long call must not end the helper
+            boolean want = bt && spk != null && now - lastMusic < 15000 && !call;   // drop the rule during calls
             if (want && policy == null) { try { register(spk); log("music on bt -> rule on"); } catch (Throwable e) { log("register fail " + e); policy = null; } }
             if (policy != null) multiFocusOnce(music);
-            if (!want && policy != null) { unregister(); log((bt ? "music stopped" : "bt off") + " -> rule off"); }
+            if (!want && policy != null) { unregister(); log((!bt ? "bt off" : call ? "call/voice mode" : "music stopped") + " -> rule off"); }
             if (now - lastBt > 120000 || now - Math.max(lastMusic, startAt) > 600000) {
                 if (policy != null) unregister();
                 log(now - lastBt > 120000 ? "bt gone 2min -> exit" : "no music 10min -> exit");

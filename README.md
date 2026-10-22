@@ -15,6 +15,8 @@ Samsung-only). SplitAudio keeps **the music app on Bluetooth and sends every oth
 - 藍牙連著＋音樂 App 正在播 → 音樂 App 走藍牙，其他 App 全走手機喇叭。
   While Bluetooth is connected and the music app is playing: music → Bluetooth, every other app → phone speaker.
 - 音樂停 15 秒或藍牙斷開 → 規則拿掉，一切恢復原狀。講電話（含網路電話）時也會先拿掉。
+- **別的 App 進入通話／語音對講**（例如監視器 App 按麥克風）：Android 這時會把媒體改送到聽筒，所以先暫停音樂，結束後自動續播。
+  While another app is in a call / voice chat (e.g. a camera app's talk button) Android sends media to the earpiece, so the music is paused and resumed afterwards.
   Music stopped for 15 s, or Bluetooth gone → the rule is removed and audio behaves normally. Also removed during calls.
 - **音量鍵**：在走喇叭的 App 畫面按＝調手機喇叭（畫面提示「手機喇叭音量 xx%」）；在音樂 App／桌面按＝照常調藍牙。
   **Volume keys**: in a speaker-routed app they change the phone speaker volume; in the music app / home screen they change Bluetooth as usual.

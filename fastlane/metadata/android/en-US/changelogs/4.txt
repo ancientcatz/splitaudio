@@ -1,0 +1,1 @@
+While another app is in a call or voice chat (for example a camera app's talk button), the music is paused and resumed afterwards, instead of playing from the phone earpiece.
