@@ -8,6 +8,7 @@ import android.provider.Settings
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Switch
 import android.widget.TextView
 
 /** 狀態＋設定頁（字串在 res/values*，英文預設、繁中 values-zh-rTW）：Shizuku 授權、無障礙（音量鍵）、手動啟動／停止分流、開影片不打斷音樂 */
@@ -25,6 +26,16 @@ class MainActivity : Activity() {
         st = TextView(this).apply { textSize = 15f; setPadding(0, pad, 0, pad) }
         root.addView(st)
         fun btn(t: String, f: () -> Unit) = root.addView(Button(this).apply { text = t; setOnClickListener { f(); refreshSoon() } })
+        root.addView(Switch(this).apply {   // 簡單模式（預設，跟 0.2 一樣）↔ 自訂模式（每個 App 自己選輸出）
+            text = getString(R.string.sw_custom); textSize = 16f; isChecked = Outputs.custom(this@MainActivity)
+            setPadding(0, pad / 2, 0, pad / 2)
+            setOnCheckedChangeListener { _, on ->
+                Outputs.setCustom(this@MainActivity, on); val c = applicationContext
+                Thread { Route.apply(c) }.start(); refreshSoon()
+                if (on && !Outputs.hasAny(this@MainActivity)) startActivity(Intent(this@MainActivity, AppsActivity::class.java))
+            }
+        })
+        btn(getString(R.string.btn_apps)) { startActivity(Intent(this, AppsActivity::class.java)) }
         btn(getString(R.string.btn_shizuku)) { Shz.request() }
         btn(getString(R.string.btn_acc)) { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
         btn(getString(R.string.btn_start)) { Thread { Route.start(this) }.start() }
@@ -43,7 +54,8 @@ class MainActivity : Activity() {
             val s = Route.ask("state")
             mf = if (Shz.granted()) Route.multiFocusState() else null
             fun g(id: Int) = getString(id)
-            val txt = getString(R.string.st_shizuku, g(if (!Shz.alive()) R.string.v_not_running else if (Shz.granted()) R.string.v_granted else R.string.v_not_granted)) +
+            val mode = if (Outputs.custom(this)) getString(R.string.st_mode_custom, Outputs.all(this).size) else getString(R.string.st_mode_simple)
+            val txt = mode + "\n" + getString(R.string.st_shizuku, g(if (!Shz.alive()) R.string.v_not_running else if (Shz.granted()) R.string.v_granted else R.string.v_not_granted)) +
                 "\n" + getString(R.string.st_acc, g(if (acc) R.string.v_on else R.string.v_off)) +
                 "\n" + getString(R.string.st_split, g(when (s) { "on" -> R.string.split_on; "off" -> R.string.split_waiting; else -> R.string.split_none })) +
                 "\n" + getString(R.string.st_mf, when (mf) { "on" -> g(R.string.v_on); "off" -> g(R.string.mf_off_auto); "off_user" -> g(R.string.mf_off_user); else -> "—" }) +

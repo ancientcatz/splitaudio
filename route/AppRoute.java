@@ -9,7 +9,9 @@
 //   and resumed when the mode is back to NORMAL (only if this process paused it).
 // Exits by itself after Bluetooth has been gone 2 min, or the music app has been silent 10 min.
 //   If this process dies, the rule dies with it -> everything falls back to Bluetooth (never silence).
+// Custom mode (0.3): "AppRoute map <file>" reads per-app outputs instead (see mapMain).
 // Usage: CLASSPATH=/data/local/tmp/approute.dex app_process /system/bin AppRoute <musicUid,musicUid> <uid> [uid...]
+//        CLASSPATH=/data/local/tmp/approute.dex app_process /system/bin AppRoute map /data/local/tmp/approute.map
 //        CLASSPATH=/data/local/tmp/approute.dex app_process /system/bin AppRoute multifocus on|off|state
 import android.media.*;
 import android.os.Looper;
@@ -23,6 +25,7 @@ public class AppRoute {
 
     public static void main(String[] a) throws Exception {
         if (a.length > 0 && a[0].equals("multifocus")) { multiFocusCmd(a.length > 1 ? a[1] : "state"); return; }
+        if (a.length > 1 && a[0].equals("map")) { mapMain(a[1]); return; }
         Looper.prepareMainLooper();
         java.util.HashSet<Integer> music = new java.util.HashSet<>();
         for (String m : a[0].split(",")) if (!m.isEmpty()) music.add(Integer.parseInt(m));
@@ -56,6 +59,96 @@ public class AppRoute {
             if (now - lastBt > 120000 || now - Math.max(lastMusic, startAt) > 600000) {
                 if (policy != null) unregister();
                 log(now - lastBt > 120000 ? "bt gone 2min -> exit" : "no music 10min -> exit");
+                System.exit(0);
+            }
+            Thread.sleep(2000);
+        }
+    }
+
+    // Custom mode: each app picks its output. The map file (written by approute.sh startmap from the app's choices)
+    //   has one line per target: "speaker:uid,uid" / "bt:uid,..." / "wired:uid,...". Apps not listed follow the system.
+    //   A target whose device isn't connected gets no mix, so its apps follow the system too (never silence).
+    //   The rule is on only while a listed app played in the last 15 s and no call is going on; it is rebuilt when the
+    //   set of connected targets changes or the map file changes. Exits after no listed app played for 10 min.
+    static final String[] TARGETS = {"speaker", "bt", "wired"};
+    static final java.util.HashMap<String, int[]> map = new java.util.HashMap<>();
+    static boolean mapMode = false;
+
+    static String target(int type) {
+        if (type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) return "speaker";
+        if (type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || type == 26 /* BLE_HEADSET */ || type == 27 /* BLE_SPEAKER */) return "bt";
+        if (type == AudioDeviceInfo.TYPE_WIRED_HEADSET || type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES
+            || type == AudioDeviceInfo.TYPE_USB_HEADSET || type == AudioDeviceInfo.TYPE_USB_DEVICE) return "wired";
+        return null;
+    }
+
+    static void readMap(java.io.File f) {
+        map.clear(); routed.clear();
+        try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.FileReader(f))) {
+            for (String l; (l = r.readLine()) != null; ) {
+                int c = l.indexOf(':');
+                if (c < 0) continue;
+                String t = l.substring(0, c).trim();
+                java.util.ArrayList<Integer> u = new java.util.ArrayList<>();
+                for (String s : l.substring(c + 1).split(",")) try { if (!s.trim().isEmpty()) u.add(Integer.parseInt(s.trim())); } catch (NumberFormatException e) {}
+                if (u.isEmpty() || java.util.Arrays.asList(TARGETS).indexOf(t) < 0) continue;
+                int[] arr = new int[u.size()];
+                for (int i = 0; i < arr.length; i++) arr[i] = u.get(i);
+                map.put(t, arr);
+                if (t.equals("speaker")) routed.addAll(u);   // volume keys: only speaker-routed apps change the speaker volume
+            }
+        } catch (Throwable e) { log("map read fail " + e); }
+        StringBuilder sb = new StringBuilder();
+        for (String t : TARGETS) if (map.containsKey(t)) sb.append(t).append('=').append(map.get(t).length).append(' ');
+        log("map " + sb.toString().trim());
+    }
+
+    static java.util.HashSet<Integer> uidSet(String... targets) {
+        java.util.HashSet<Integer> s = new java.util.HashSet<>();
+        for (String t : targets) if (map.containsKey(t)) for (int u : map.get(t)) s.add(u);
+        return s;
+    }
+
+    static void mapMain(String path) throws Exception {
+        Looper.prepareMainLooper();
+        mapMode = true;
+        java.io.File f = new java.io.File(path);
+        long mtime = -1; String regKey = "";
+        Thread vt = new Thread(AppRoute::volServer); vt.setDaemon(true); vt.start();
+        long now = System.currentTimeMillis(), lastPlay = 0, startAt = now;
+        while (true) {
+            now = System.currentTimeMillis();
+            if (f.lastModified() != mtime) { mtime = f.lastModified(); readMap(f); if (policy != null) unregister(); regKey = ""; }
+            java.util.HashSet<Integer> all = uidSet(TARGETS), onBt = uidSet("bt");
+            java.util.HashMap<String, AudioDeviceInfo> dev = new java.util.HashMap<>();
+            for (AudioDeviceInfo d : outputs()) { String t = target(d.getType()); if (t != null && !dev.containsKey(t)) dev.put(t, d); }
+            boolean call = inCall();
+            // same as Simple mode: apps put on Bluetooth would follow a call/voice chat to the earpiece -> pause them meanwhile
+            if (call && !pausedForCall && dev.containsKey("bt") && !onBt.isEmpty() && musicPlaying(onBt)) {
+                sh("cmd media_session dispatch pause"); pausedForCall = true; log("call/voice mode -> music paused");
+            }
+            if (!call && pausedForCall) {
+                pausedForCall = false;
+                if (!musicPlaying(onBt)) { sh("cmd media_session dispatch play"); log("call/voice mode over -> music resumed"); }
+            }
+            if ((!all.isEmpty() && musicPlaying(all)) || pausedForCall) lastPlay = now;
+            StringBuilder key = new StringBuilder();
+            java.util.LinkedHashMap<AudioDeviceInfo, int[]> targets = new java.util.LinkedHashMap<>();
+            for (String t : TARGETS) if (dev.containsKey(t) && map.containsKey(t)) {
+                key.append(t).append('=').append(dev.get(t).getId()).append(';');
+                targets.put(dev.get(t), map.get(t));
+            }
+            boolean want = !targets.isEmpty() && now - lastPlay < 15000 && !call;
+            if (want && (policy == null || !key.toString().equals(regKey))) {
+                if (policy != null) unregister();
+                try { registerAll(targets); regKey = key.toString(); log("rule on " + regKey); }
+                catch (Throwable e) { log("register fail " + e); policy = null; regKey = ""; }
+            }
+            if (policy != null) multiFocusOnce(all);
+            if (!want && policy != null) { unregister(); regKey = ""; log((call ? "call/voice mode" : targets.isEmpty() ? "no target device" : "listed apps stopped") + " -> rule off"); }
+            if (now - Math.max(lastPlay, startAt) > 600000) {
+                if (policy != null) unregister();
+                log("no listed app played 10min -> exit");
                 System.exit(0);
             }
             Thread.sleep(2000);
@@ -140,6 +233,7 @@ public class AppRoute {
     static String volCmd(String line) {
         String[] p = line.split(" ");
         if (p[0].equals("state")) return policy != null ? "on" : "off";
+        if (p[0].equals("mode")) return mapMode ? "map" : "legacy";
         if (!p[0].equals("vol") || p.length < 3) return "err";
         if (policy == null) return "pass";
         try {
@@ -184,27 +278,40 @@ public class AppRoute {
     //   dropped, and with ~100+ the whole mix is ignored. So: 20 uids per mix, up to 50 mixes (1000 uids),
     //   all in one policy. Verify with a normal app's playback, not a shell-uid test track.
     static final int CHUNK = 20;
-    static void register(AudioDeviceInfo spk) throws Exception {
+    static void register(AudioDeviceInfo spk) throws Exception {   // Simple mode: every listed uid -> speaker
+        java.util.LinkedHashMap<AudioDeviceInfo, int[]> m = new java.util.LinkedHashMap<>();
+        m.put(spk, uids);
+        registerAll(m);
+    }
+
+    // One policy, one or more RENDER mixes per output device (the 50-mix budget is shared across devices).
+    static void registerAll(java.util.Map<AudioDeviceInfo, int[]> targets) throws Exception {
         Class<?> pb = Class.forName("android.media.audiopolicy.AudioPolicy$Builder");
         Object pbi = pb.getConstructor(android.content.Context.class).newInstance((Object) null);
-        int mixes = 0, n = Math.min(uids.length, CHUNK * 50);   // max 50 mixes per policy
-        if (n < uids.length) log("too many apps, routing first " + n + " of " + uids.length);
-        for (int i = 0; i < n; i += CHUNK) {
-            Class<?> rb = Class.forName("android.media.audiopolicy.AudioMixingRule$Builder");
-            Object rbi = rb.getConstructor().newInstance();
-            for (int k = i; k < Math.min(n, i + CHUNK); k++)
-                rb.getMethod("addMixRule", int.class, Object.class).invoke(rbi, 4 /* RULE_MATCH_UID */, Integer.valueOf(uids[k]));
-            Object rule = rb.getMethod("build").invoke(rbi);
-            Class<?> mb = Class.forName("android.media.audiopolicy.AudioMix$Builder");
-            Object mbi = mb.getConstructor(Class.forName("android.media.audiopolicy.AudioMixingRule")).newInstance(rule);
-            mb.getMethod("setFormat", AudioFormat.class).invoke(mbi, new AudioFormat.Builder().setSampleRate(48000)
-                .setEncoding(AudioFormat.ENCODING_PCM_16BIT).setChannelMask(AudioFormat.CHANNEL_OUT_STEREO).build());
-            mb.getMethod("setRouteFlags", int.class).invoke(mbi, 1 /* ROUTE_FLAG_RENDER */);
-            mb.getMethod("setDevice", AudioDeviceInfo.class).invoke(mbi, spk);
-            pb.getMethod("addMix", Class.forName("android.media.audiopolicy.AudioMix")).invoke(pbi, mb.getMethod("build").invoke(mbi));
-            mixes++;
+        int mixes = 0, total = 0;
+        for (java.util.Map.Entry<AudioDeviceInfo, int[]> e : targets.entrySet()) {
+            int[] u = e.getValue();
+            int n = Math.min(u.length, CHUNK * (50 - mixes));   // max 50 mixes per policy
+            if (n < u.length) log("too many apps, routing first " + n + " of " + u.length);
+            for (int i = 0; i < n; i += CHUNK) {
+                Class<?> rb = Class.forName("android.media.audiopolicy.AudioMixingRule$Builder");
+                Object rbi = rb.getConstructor().newInstance();
+                for (int k = i; k < Math.min(n, i + CHUNK); k++)
+                    rb.getMethod("addMixRule", int.class, Object.class).invoke(rbi, 4 /* RULE_MATCH_UID */, Integer.valueOf(u[k]));
+                Object rule = rb.getMethod("build").invoke(rbi);
+                Class<?> mb = Class.forName("android.media.audiopolicy.AudioMix$Builder");
+                Object mbi = mb.getConstructor(Class.forName("android.media.audiopolicy.AudioMixingRule")).newInstance(rule);
+                mb.getMethod("setFormat", AudioFormat.class).invoke(mbi, new AudioFormat.Builder().setSampleRate(48000)
+                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT).setChannelMask(AudioFormat.CHANNEL_OUT_STEREO).build());
+                mb.getMethod("setRouteFlags", int.class).invoke(mbi, 1 /* ROUTE_FLAG_RENDER */);
+                mb.getMethod("setDevice", AudioDeviceInfo.class).invoke(mbi, e.getKey());
+                pb.getMethod("addMix", Class.forName("android.media.audiopolicy.AudioMix")).invoke(pbi, mb.getMethod("build").invoke(mbi));
+                mixes++;
+            }
+            total += n;
         }
-        log("mixes=" + mixes + " uids=" + n);
+        if (mixes == 0) throw new RuntimeException("no mixes");
+        log("mixes=" + mixes + " uids=" + total);
         Object p = pb.getMethod("build").invoke(pbi);
         Method reg = AudioManager.class.getDeclaredMethod("registerAudioPolicyStatic", Class.forName("android.media.audiopolicy.AudioPolicy"));
         reg.setAccessible(true);

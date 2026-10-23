@@ -1,0 +1,103 @@
+package app.splitaudio
+
+import android.app.Activity
+import android.app.AlertDialog
+import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.Drawable
+import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.View
+import android.view.ViewGroup
+import android.widget.BaseAdapter
+import android.widget.EditText
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ListView
+import android.widget.TextView
+
+/** 自訂模式：每個 App 選輸出。只列有桌面圖示的 App（manifest <queries> MAIN/LAUNCHER，不用 QUERY_ALL_PACKAGES）。
+ *  改過才在離開頁面時套用（停掉路由，監看服務照新設定重開）。 */
+class AppsActivity : Activity() {
+    private class App(val pkg: String, val label: String, val icon: Drawable)
+    private var all = listOf<App>()
+    private var shown = listOf<App>()
+    private var query = ""
+    private var changed = false
+    private lateinit var adapter: BaseAdapter
+
+    override fun onCreate(b: Bundle?) {
+        super.onCreate(b)
+        val dp = resources.displayMetrics.density
+        val pad = (12 * dp).toInt()
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, pad, pad, 0) }
+        root.addView(TextView(this).apply { textSize = 14f; text = getString(R.string.apps_hint) })
+        root.addView(EditText(this).apply {
+            hint = getString(R.string.apps_search); isSingleLine = true
+            addTextChangedListener(object : TextWatcher {
+                override fun afterTextChanged(s: Editable?) { query = s?.toString().orEmpty().trim(); filter() }
+                override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+                override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            })
+        })
+        adapter = object : BaseAdapter() {
+            override fun getCount() = shown.size
+            override fun getItem(i: Int) = shown[i]
+            override fun getItemId(i: Int) = i.toLong()
+            override fun getView(i: Int, v: View?, parent: ViewGroup?): View {
+                val row = (v as? LinearLayout) ?: row(dp)
+                val a = shown[i]; val o = Outputs.get(this@AppsActivity, a.pkg)
+                (row.getChildAt(0) as ImageView).setImageDrawable(a.icon)
+                val col = row.getChildAt(1) as LinearLayout
+                (col.getChildAt(0) as TextView).text = a.label
+                (col.getChildAt(1) as TextView).apply {
+                    text = Outputs.label(this@AppsActivity, o)
+                    setTextColor(when (o) { "speaker" -> Color.rgb(230, 81, 0); "bt" -> Color.rgb(21, 101, 192); "wired" -> Color.rgb(46, 125, 50); else -> Color.GRAY })
+                }
+                return row
+            }
+        }
+        val lv = ListView(this).apply { adapter = this@AppsActivity.adapter; setOnItemClickListener { _, _, i, _ -> pick(shown[i]) } }
+        root.addView(lv, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        setContentView(root)
+        Thread {
+            val pm = packageManager
+            val l = pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)
+                .map { it.activityInfo.applicationInfo }.distinctBy { it.packageName }.filter { it.packageName != packageName }
+                .map { App(it.packageName, pm.getApplicationLabel(it).toString(), pm.getApplicationIcon(it)) }
+            runOnUiThread { all = l; filter() }
+        }.start()
+    }
+
+    private fun row(dp: Float): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        val p = (8 * dp).toInt(); setPadding(0, p, 0, p)
+        addView(ImageView(this@AppsActivity), LinearLayout.LayoutParams((40 * dp).toInt(), (40 * dp).toInt()).apply { rightMargin = (12 * dp).toInt() })
+        addView(LinearLayout(this@AppsActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(TextView(this@AppsActivity).apply { textSize = 16f })
+            addView(TextView(this@AppsActivity).apply { textSize = 13f })
+        })
+    }
+
+    /** 有指定輸出的排前面，再照名稱；搜尋比對名稱或套件名 */
+    private fun filter() {
+        shown = all.filter { query.isEmpty() || it.label.contains(query, true) || it.pkg.contains(query, true) }
+            .sortedWith(compareBy<App>({ Outputs.get(this, it.pkg) == "default" }, { it.label.lowercase() }))
+        adapter.notifyDataSetChanged()
+    }
+
+    private fun pick(a: App) {
+        val cur = Outputs.KEYS.indexOf(Outputs.get(this, a.pkg)).coerceAtLeast(0)
+        AlertDialog.Builder(this).setTitle(a.label)
+            .setSingleChoiceItems(Outputs.KEYS.map { Outputs.label(this, it) }.toTypedArray(), cur) { d, w ->
+                Outputs.set(this, a.pkg, Outputs.KEYS[w]); changed = true; adapter.notifyDataSetChanged(); d.dismiss()
+            }.show()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (changed) { changed = false; val c = applicationContext; Thread { Route.apply(c) }.start() }
+    }
+}

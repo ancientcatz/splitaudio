@@ -2,7 +2,20 @@
 <resources>
     <string name="app_name">SplitAudio 分流</string>
     <string name="acc_desc">藍牙只放音樂時，在其他 App 畫面按音量鍵＝調手機喇叭；音樂 App／桌面照常調藍牙。只讀前景 App 名稱，不讀畫面內容。</string>
-    <string name="intro">SplitAudio 分流\n藍牙只放音樂 App（YT Music），其他 App 的聲音走手機喇叭。</string>
+    <string name="intro">SplitAudio 分流\n簡單模式：藍牙只放音樂 App（YT Music），其他 App 的聲音走手機喇叭。\n自訂模式：每個 App 自己選從哪裡出聲。</string>
+    <string name="sw_custom">自訂模式：每個 App 自己選輸出</string>
+    <string name="btn_apps">選每個 App 的輸出</string>
+    <string name="st_mode_simple">模式：簡單（音樂 App→藍牙，其他→喇叭）</string>
+    <string name="st_mode_custom">模式：自訂（已設定 %1$d 個 App）</string>
+    <string name="apps_title">每個 App 的輸出</string>
+    <string name="apps_hint">點 App 選它的聲音從哪裡出來。預設＝跟系統。選的裝置沒連著時，這個 App 就跟系統。</string>
+    <string name="apps_search">搜尋 App</string>
+    <string name="out_default">預設（跟系統）</string>
+    <string name="out_speaker">手機喇叭</string>
+    <string name="out_bt">藍牙</string>
+    <string name="out_wired">有線／USB 耳機</string>
+    <string name="s_no_apps">自訂模式：還沒設定任何 App</string>
+    <string name="s_custom_wait">待命（路由在跑，等有設定的 App 播放）</string>
     <string name="btn_shizuku">① Shizuku 授權</string>
     <string name="btn_acc">② 開啟無障礙（音量鍵調手機喇叭）</string>
     <string name="btn_start">立即啟動分流</string>

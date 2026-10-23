@@ -2,7 +2,20 @@
 <resources>
     <string name="app_name">SplitAudio</string>
     <string name="acc_desc">While Bluetooth plays only the music app, the volume keys in other apps change the phone speaker volume; in the music app or on the home screen they change Bluetooth as usual. Reads only the foreground app\'s name, never screen content.</string>
-    <string name="intro">SplitAudio\nThe music app (YT Music) stays on Bluetooth; every other app plays on the phone speaker.</string>
+    <string name="intro">SplitAudio\nSimple mode: the music app (YT Music) stays on Bluetooth, every other app plays on the phone speaker.\nCustom mode: pick the output for each app.</string>
+    <string name="sw_custom">Custom mode: choose the output for each app</string>
+    <string name="btn_apps">Choose output for each app</string>
+    <string name="st_mode_simple">Mode: Simple (music app → Bluetooth, others → speaker)</string>
+    <string name="st_mode_custom">Mode: Custom (%1$d apps set)</string>
+    <string name="apps_title">Output for each app</string>
+    <string name="apps_hint">Tap an app to choose where its sound plays. Default = follow the system. If the chosen device isn\'t connected, the app follows the system.</string>
+    <string name="apps_search">Search apps</string>
+    <string name="out_default">Default (follow the system)</string>
+    <string name="out_speaker">Phone speaker</string>
+    <string name="out_bt">Bluetooth</string>
+    <string name="out_wired">Wired / USB headphones</string>
+    <string name="s_no_apps">Custom mode: no app set yet</string>
+    <string name="s_custom_wait">Idle (router running, waiting for a listed app)</string>
     <string name="btn_shizuku">① Grant Shizuku</string>
     <string name="btn_acc">② Enable accessibility (volume keys → phone speaker)</string>
     <string name="btn_start">Start split now</string>

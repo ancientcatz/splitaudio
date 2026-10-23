@@ -18,7 +18,8 @@ import android.os.Looper
 import rikka.shizuku.Shizuku
 
 /** 常駐（前景通知）：聽「播放變化」「輸出裝置變化」→ 藍牙連著＋有音樂在播＋路由沒在跑 → 經 Shizuku 啟動 AppRoute。
- *  沒有定時輪詢；只有藍牙連著時每 60 秒補查一次（防回呼漏掉）。啟動失敗 30 秒內不重試。 */
+ *  沒有定時輪詢；只有藍牙連著時每 60 秒補查一次（防回呼漏掉）。啟動失敗 30 秒內不重試。
+ *  自訂模式：有指定輸出的 App＋有任何聲音在播（本 App 看不到是誰在播，路由程式看得到）就起，不管藍牙；每 60 秒補查。 */
 class MonitorService : Service() {
     private val h = Handler(Looper.getMainLooper())
     private var lastTry = 0L
@@ -48,14 +49,33 @@ class MonitorService : Service() {
     private fun bt(): Boolean = am.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any {
         it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || it.type == AudioDeviceInfo.TYPE_BLE_HEADSET || it.type == AudioDeviceInfo.TYPE_BLE_SPEAKER }
 
-    private fun tick() { h.postDelayed({ if (bt()) check("tick"); tick() }, 60_000) }
+    private fun tick() { h.postDelayed({ if (bt() || Outputs.custom(this)) check("tick"); tick() }, 60_000) }
 
     private fun check(why: String) {
+        if (Outputs.custom(this)) { checkCustom(); return }
         val b = bt(); val music = am.isMusicActive
         if (!(b && music)) { Thread { setState(getString(if (Route.ruleOn()) R.string.s_split else if (b) R.string.s_bt_idle else R.string.s_idle)) }.start(); return }
         Thread {
+            if (Route.mode() == "map") Route.stop()   // 剛從自訂模式換回來還在跑的 → 停掉照簡單模式重起
             if (Route.ruleOn()) { setState(getString(R.string.s_split)); return@Thread }
             if (Route.running()) { setState(getString(R.string.s_router_wait)); return@Thread }
+            val now = System.currentTimeMillis()
+            if (now - lastTry < 30_000) return@Thread
+            lastTry = now
+            if (!Shz.granted()) { setState(getString(if (Shz.alive()) R.string.s_need_grant else R.string.s_shizuku_down)); return@Thread }
+            val r = Route.start(this)
+            Thread.sleep(2500)
+            setState(if (Route.ruleOn()) getString(R.string.s_split) else getString(R.string.s_result, r))
+        }.start()
+    }
+
+    private fun checkCustom() {
+        val any = Outputs.hasAny(this)
+        if (!(any && am.isMusicActive)) { Thread { setState(getString(if (Route.ruleOn()) R.string.s_split else if (!any) R.string.s_no_apps else R.string.s_idle)) }.start(); return }
+        Thread {
+            if (Route.running() && Route.mode() != "map") Route.stop()   // 簡單模式的路由還在跑 → 換成自訂
+            if (Route.ruleOn()) { setState(getString(R.string.s_split)); return@Thread }
+            if (Route.running()) { setState(getString(R.string.s_custom_wait)); return@Thread }
             val now = System.currentTimeMillis()
             if (now - lastTry < 30_000) return@Thread
             lastTry = now

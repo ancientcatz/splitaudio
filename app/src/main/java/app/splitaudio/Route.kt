@@ -8,7 +8,8 @@ import java.net.Socket
 
 /** 路由本體＝AppRoute（app_process 小程式，shell 身分註冊系統路由規則：音樂 App 以外的 App 走手機喇叭）。
  *  本 App 只負責：把 assets 裡的 approute.dex／approute.sh 經 Shizuku 寫到 /data/local/tmp 並啟動，之後用本機指令口 127.0.0.1:47821 溝通。
- *  AppRoute 用 setsid 脫離，本 App 被系統殺掉路由照跑；藍牙斷 2 分／音樂 10 分沒播它自己結束。 */
+ *  AppRoute 用 setsid 脫離，本 App 被系統殺掉路由照跑；藍牙斷 2 分／音樂 10 分沒播它自己結束。
+ *  自訂模式（0.3）：先把每個 App 的輸出寫成 approute.pkgmap，再用 approute.sh startmap 起「AppRoute map」。 */
 object Route {
     const val PORT = 47821
     @Volatile var lastStart = "none"
@@ -23,6 +24,8 @@ object Route {
 
     fun running(): Boolean = ask("state") != null
     fun ruleOn(): Boolean = ask("state") == "on"
+    /** 正在跑的路由是哪個模式："map"（自訂）／"legacy"（簡單；0.2 的舊路由不認得 mode 也當 legacy） */
+    fun mode(): String? = ask("mode")?.let { if (it == "map") "map" else "legacy" }
 
     /** 把 assets 寫到 /data/local/tmp（先寫 .new 再改名：正在跑的 AppRoute 還拿著舊檔，不能原地覆蓋）。成功回 null。 */
     private fun deploy(ctx: Context): String? {
@@ -39,9 +42,18 @@ object Route {
     @Synchronized fun start(ctx: Context): String {
         if (running()) return "already".also { lastStart = it }
         deploy(ctx)?.let { return it.also { lastStart = it } }
-        val r = Shz.run("sh /data/local/tmp/approute.sh start", 30)
+        val custom = Outputs.custom(ctx)
+        if (custom) {
+            if (!Outputs.hasAny(ctx)) return "no_apps".also { lastStart = it }
+            val w = Shz.run("cat > /data/local/tmp/approute.pkgmap.new && chmod 644 /data/local/tmp/approute.pkgmap.new && mv -f /data/local/tmp/approute.pkgmap.new /data/local/tmp/approute.pkgmap", 15, Outputs.mapText(ctx).toByteArray())
+            if (w.first != 0) return "map_fail:${w.first}".also { lastStart = it }
+        }
+        val r = Shz.run("sh /data/local/tmp/approute.sh " + (if (custom) "startmap" else "start"), 45)
         return ("start rc=${r.first} " + r.second.trim().lines().lastOrNull().orEmpty().take(80)).also { lastStart = it }
     }
+
+    /** 換模式／改了 App 輸出（背景執行緒叫）：停掉正在跑的路由，監看服務照新設定、有聲音時再起。 */
+    fun apply(ctx: Context) { stop(); MonitorService.ensure(ctx) }
 
     fun stop(): String = Shz.run("sh /data/local/tmp/approute.sh stop", 15).second.trim()
 

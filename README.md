@@ -36,6 +36,23 @@ Samsung-only). SplitAudio keeps **the music app on Bluetooth and sends every oth
 預設音樂 App＝YouTube Music（`com.google.android.apps.youtube.music`，以及 Morphe 修改版）。
 Default music app = YouTube Music (plus the Morphe-patched package).
 
+## 自訂模式 / Custom mode (0.3)
+> **只在 Xiaomi 15（HyperOS 3、Android 16）實機驗證過。** Only verified on a Xiaomi 15 (HyperOS 3, Android 16).
+
+- 打開「自訂模式」→「選每個 App 的輸出」：每個 App 可以選 **預設（跟系統）／手機喇叭／藍牙／有線或 USB 耳機**。
+  Turn on "Custom mode" → "Choose output for each app": every app can play on **Default (follow the system) / Phone
+  speaker / Bluetooth / Wired or USB headphones** — like Samsung's "Separate app sound", on any phone with Shizuku.
+- 選的裝置沒連著時，那個 App 就跟系統走（不會沒聲音）；講電話時規則先拿掉。
+  If the chosen device isn't connected, that app follows the system (never silence). The rule is removed during calls.
+- 只列有桌面圖示的 App（不需要「讀取所有 App 清單」權限）。
+  Only apps with a launcher icon are listed (no "query all packages" permission).
+- 簡單模式（音樂 App 走藍牙、其他走喇叭）仍是預設，升級後行為不變。
+  Simple mode (music app on Bluetooth, everything else on the speaker) stays the default, so upgrading changes nothing.
+- 原理同下：App 把設定寫成 `/data/local/tmp/approute.pkgmap`，`approute.sh startmap` 換成 uid 後起 `AppRoute map`，
+  每種輸出各一組 RENDER 規則。
+  Same mechanism as below: the app writes `/data/local/tmp/approute.pkgmap`, `approute.sh startmap` turns package names
+  into uids and starts `AppRoute map`, which registers one set of RENDER mixes per output device.
+
 ## 原理 / How it works
 ```
  SplitAudio app ──Shizuku (shell user)──► /data/local/tmp/approute.sh start
