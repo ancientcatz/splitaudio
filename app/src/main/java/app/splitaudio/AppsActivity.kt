@@ -43,7 +43,7 @@ class AppsActivity : Activity() {
         })
         adapter = object : BaseAdapter() {
             override fun getCount() = shown.size
-            override fun getItem(i: Int) = shown[i]
+            override fun getItem(i: Int): Any = shown[i]
             override fun getItemId(i: Int) = i.toLong()
             override fun getView(i: Int, v: View?, parent: ViewGroup?): View {
                 val row = (v as? LinearLayout) ?: row(dp)
@@ -91,7 +91,7 @@ class AppsActivity : Activity() {
     private fun pick(a: App) {
         val cur = Outputs.KEYS.indexOf(Outputs.get(this, a.pkg)).coerceAtLeast(0)
         AlertDialog.Builder(this).setTitle(a.label)
-            .setSingleChoiceItems(Outputs.KEYS.map { Outputs.label(this, it) }.toTypedArray(), cur) { d, w ->
+            .setSingleChoiceItems(Outputs.KEYS.map<String, CharSequence> { Outputs.label(this, it) }.toTypedArray(), cur) { d, w ->
                 Outputs.set(this, a.pkg, Outputs.KEYS[w]); changed = true; adapter.notifyDataSetChanged(); d.dismiss()
             }.show()
     }
