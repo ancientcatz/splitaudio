@@ -68,4 +68,5 @@
     <string name="live_on">Split active</string>
     <string name="live_wait">Waiting for music</string>
     <string name="live_none">Not running</string>
+    <string name="mode_custom_empty">No app chosen yet, so it works like Simple mode for now.</string>
 </resources>

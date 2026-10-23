@@ -108,7 +108,7 @@ class MainActivity : Activity() {
     override fun onResume() { super.onResume(); refreshSoon() }
 
     private fun setMode(custom: Boolean) {
-        if (custom == Outputs.custom(this)) return
+        if (custom == Outputs.customFlag(this)) return
         Outputs.setCustom(this, custom); val c = applicationContext
         Thread { Route.apply(c) }.start()
         if (custom && !Outputs.hasAny(this)) startActivity(Intent(this, AppsActivity::class.java))
@@ -122,7 +122,7 @@ class MainActivity : Activity() {
             val s = Route.ask("state")
             val alive = Shz.alive(); val granted = Shz.granted()
             mf = if (granted) Route.multiFocusState() else null
-            val custom = Outputs.custom(this); val nApps = Outputs.all(this).size
+            val custom = Outputs.customFlag(this); val nApps = Outputs.all(this).size
             runOnUiThread {
                 val (live, color) = when (s) {
                     "on" -> Pair("🟢 " + getString(R.string.live_on), C_GREEN)
@@ -131,7 +131,7 @@ class MainActivity : Activity() {
                 }
                 tvLive.text = live
                 (liveCard.background as GradientDrawable).setColor(color)
-                tvLiveSub.text = if (custom) getString(R.string.st_mode_custom, nApps) else getString(R.string.st_mode_simple)
+                tvLiveSub.text = if (custom && nApps > 0) getString(R.string.st_mode_custom, nApps) else getString(R.string.st_mode_simple)
                 tvLast.text = getString(R.string.st_last, Route.lastStart)
 
                 setChip(shzChip, if (granted) 1 else 0, getString(if (!alive) R.string.v_not_running else if (granted) R.string.v_granted else R.string.v_not_granted))
@@ -140,7 +140,7 @@ class MainActivity : Activity() {
                 accBtn.visibility = if (acc) android.view.View.GONE else android.view.View.VISIBLE
 
                 segPaint(segSimple, !custom, C_TEAL); segPaint(segCustom, custom, C_PURPLE)
-                tvModeDesc.text = getString(if (custom) R.string.mode_custom_d else R.string.mode_simple_d)
+                tvModeDesc.text = getString(if (custom && nApps == 0) R.string.mode_custom_empty else if (custom) R.string.mode_custom_d else R.string.mode_simple_d)
                 appsBtn.visibility = if (custom) android.view.View.VISIBLE else android.view.View.GONE
 
                 mfBusy = true; mfSw.isChecked = mf == "on"; mfSw.isEnabled = granted; mfBusy = false

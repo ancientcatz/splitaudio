@@ -9,7 +9,10 @@ object Outputs {
     private val PKG = Regex("^[A-Za-z0-9_.]+$")   // 套件名才寫進給 shell 讀的檔
     private fun sp(c: Context) = c.getSharedPreferences("outputs", Context.MODE_PRIVATE)
 
-    fun custom(c: Context) = sp(c).getBoolean("custom", false)
+    /** 開關本身（畫面上的「自訂」色塊） */
+    fun customFlag(c: Context) = sp(c).getBoolean("custom", false)
+    /** 實際生效：開了自訂但一個 App 都沒選＝照簡單模式跑（不然什麼都不分流，像壞掉） */
+    fun custom(c: Context) = customFlag(c) && hasAny(c)
     fun setCustom(c: Context, on: Boolean) = sp(c).edit().putBoolean("custom", on).apply()
 
     fun get(c: Context, pkg: String) = sp(c).getString("o:$pkg", "default") ?: "default"
