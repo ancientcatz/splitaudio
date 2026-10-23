@@ -10,7 +10,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 
-/** 狀態＋設定頁：Shizuku 授權、無障礙（音量鍵）、手動啟動／停止分流、開影片不打斷音樂 */
+/** 狀態＋設定頁（字串在 res/values*，英文預設、繁中 values-zh-rTW）：Shizuku 授權、無障礙（音量鍵）、手動啟動／停止分流、開影片不打斷音樂 */
 class MainActivity : Activity() {
     private lateinit var st: TextView
     @Volatile private var mf: String? = null
@@ -21,16 +21,16 @@ class MainActivity : Activity() {
         MonitorService.ensure(this)
         val pad = (16 * resources.displayMetrics.density).toInt()
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, pad, pad, pad) }
-        root.addView(TextView(this).apply { textSize = 18f; text = "SplitAudio 分流\n藍牙只放音樂 App（YT Music），其他 App 的聲音走手機喇叭。" })
+        root.addView(TextView(this).apply { textSize = 18f; text = getString(R.string.intro) })
         st = TextView(this).apply { textSize = 15f; setPadding(0, pad, 0, pad) }
         root.addView(st)
         fun btn(t: String, f: () -> Unit) = root.addView(Button(this).apply { text = t; setOnClickListener { f(); refreshSoon() } })
-        btn("① Shizuku 授權") { Shz.request() }
-        btn("② 開啟無障礙（音量鍵調手機喇叭）") { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-        btn("立即啟動分流") { Thread { Route.start(this) }.start() }
-        btn("停止分流") { Thread { Route.stop() }.start() }
-        btn("開／關：開影片不打斷音樂") { val on = mf != "on"; Thread { Route.lastStart = "影片不打斷音樂 → " + Route.setMultiFocus(this, on) }.start() }
-        btn("重新整理") { }
+        btn(getString(R.string.btn_shizuku)) { Shz.request() }
+        btn(getString(R.string.btn_acc)) { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+        btn(getString(R.string.btn_start)) { Thread { Route.start(this) }.start() }
+        btn(getString(R.string.btn_stop)) { Thread { Route.stop() }.start() }
+        btn(getString(R.string.btn_mf)) { val on = mf != "on"; Thread { Route.lastStart = getString(R.string.mf_result, Route.setMultiFocus(this, on)) }.start() }
+        btn(getString(R.string.btn_refresh)) { }
         setContentView(ScrollView(this).apply { addView(root) })
     }
 
@@ -42,11 +42,12 @@ class MainActivity : Activity() {
             val acc = (Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: "").contains("$packageName/")
             val s = Route.ask("state")
             mf = if (Shz.granted()) Route.multiFocusState() else null
-            val txt = "Shizuku：" + (if (!Shz.alive()) "沒在跑" else if (Shz.granted()) "已授權 ✓" else "未授權") +
-                "\n無障礙（音量鍵）：" + (if (acc) "已開 ✓" else "未開") +
-                "\n分流：" + (when (s) { "on" -> "分流中 ✓"; "off" -> "路由在跑，等音樂播放"; else -> "沒在跑（藍牙＋音樂播放時自動啟動）" }) +
-                "\n開影片不打斷音樂：" + (when (mf) { "on" -> "已開 ✓"; "off" -> "未開（第一次分流時自動打開）"; "off_user" -> "已關（你按的，不會自動打開）"; else -> "—" }) +
-                "\n上次啟動：" + Route.lastStart
+            fun g(id: Int) = getString(id)
+            val txt = getString(R.string.st_shizuku, g(if (!Shz.alive()) R.string.v_not_running else if (Shz.granted()) R.string.v_granted else R.string.v_not_granted)) +
+                "\n" + getString(R.string.st_acc, g(if (acc) R.string.v_on else R.string.v_off)) +
+                "\n" + getString(R.string.st_split, g(when (s) { "on" -> R.string.split_on; "off" -> R.string.split_waiting; else -> R.string.split_none })) +
+                "\n" + getString(R.string.st_mf, when (mf) { "on" -> g(R.string.v_on); "off" -> g(R.string.mf_off_auto); "off_user" -> g(R.string.mf_off_user); else -> "—" }) +
+                "\n" + getString(R.string.st_last, Route.lastStart)
             runOnUiThread { st.text = txt }
         }.start()
     }

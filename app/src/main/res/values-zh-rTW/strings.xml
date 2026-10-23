@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SplitAudio 分流</string>
+    <string name="acc_desc">藍牙只放音樂時，在其他 App 畫面按音量鍵＝調手機喇叭；音樂 App／桌面照常調藍牙。只讀前景 App 名稱，不讀畫面內容。</string>
+    <string name="intro">SplitAudio 分流\n藍牙只放音樂 App（YT Music），其他 App 的聲音走手機喇叭。</string>
+    <string name="btn_shizuku">① Shizuku 授權</string>
+    <string name="btn_acc">② 開啟無障礙（音量鍵調手機喇叭）</string>
+    <string name="btn_start">立即啟動分流</string>
+    <string name="btn_stop">停止分流</string>
+    <string name="btn_mf">開／關：開影片不打斷音樂</string>
+    <string name="btn_refresh">重新整理</string>
+    <string name="mf_result">影片不打斷音樂 → %1$s</string>
+    <string name="st_shizuku">Shizuku：%1$s</string>
+    <string name="st_acc">無障礙（音量鍵）：%1$s</string>
+    <string name="st_split">分流：%1$s</string>
+    <string name="st_mf">開影片不打斷音樂：%1$s</string>
+    <string name="st_last">上次啟動：%1$s</string>
+    <string name="v_not_running">沒在跑</string>
+    <string name="v_granted">已授權 ✓</string>
+    <string name="v_not_granted">未授權</string>
+    <string name="v_on">已開 ✓</string>
+    <string name="v_off">未開</string>
+    <string name="split_on">分流中 ✓</string>
+    <string name="split_waiting">路由在跑，等音樂播放</string>
+    <string name="split_none">沒在跑（藍牙＋音樂播放時自動啟動）</string>
+    <string name="mf_off_auto">未開（第一次分流時自動打開）</string>
+    <string name="mf_off_user">已關（你按的，不會自動打開）</string>
+    <string name="s_split">分流中</string>
+    <string name="s_bt_idle">藍牙已連（沒在播音樂）</string>
+    <string name="s_idle">待命</string>
+    <string name="s_router_wait">待命（路由在跑，等音樂 App 播放）</string>
+    <string name="s_need_grant">要授權 Shizuku（打開 App 按授權）</string>
+    <string name="s_shizuku_down">Shizuku 沒在跑</string>
+    <string name="s_result">啟動結果：%1$s</string>
+    <string name="ch_route">分流狀態</string>
+    <string name="notif_title">SplitAudio：%1$s</string>
+    <string name="toast_vol">手機喇叭音量 %1$s%%</string>
+</resources>

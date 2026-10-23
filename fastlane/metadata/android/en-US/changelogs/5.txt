@@ -1,0 +1,1 @@
+The app is now in English by default; it shows Traditional Chinese only when the phone language is Chinese (Taiwan).

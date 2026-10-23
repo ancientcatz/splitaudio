@@ -22,13 +22,14 @@ import rikka.shizuku.Shizuku
 class MonitorService : Service() {
     private val h = Handler(Looper.getMainLooper())
     private var lastTry = 0L
-    @Volatile private var state = "待命"
+    @Volatile private var state = ""
     private lateinit var am: AudioManager
 
     override fun onBind(i: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
+        state = getString(R.string.s_idle)
         am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         startForeground(1, notif(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         am.registerAudioPlaybackCallback(object : AudioManager.AudioPlaybackCallback() {
@@ -51,17 +52,17 @@ class MonitorService : Service() {
 
     private fun check(why: String) {
         val b = bt(); val music = am.isMusicActive
-        if (!(b && music)) { Thread { setState(if (Route.ruleOn()) "分流中" else if (b) "藍牙已連（沒在播音樂）" else "待命") }.start(); return }
+        if (!(b && music)) { Thread { setState(getString(if (Route.ruleOn()) R.string.s_split else if (b) R.string.s_bt_idle else R.string.s_idle)) }.start(); return }
         Thread {
-            if (Route.ruleOn()) { setState("分流中"); return@Thread }
-            if (Route.running()) { setState("待命（路由在跑，等音樂 App 播放）"); return@Thread }
+            if (Route.ruleOn()) { setState(getString(R.string.s_split)); return@Thread }
+            if (Route.running()) { setState(getString(R.string.s_router_wait)); return@Thread }
             val now = System.currentTimeMillis()
             if (now - lastTry < 30_000) return@Thread
             lastTry = now
-            if (!Shz.granted()) { setState(if (Shz.alive()) "要授權 Shizuku（打開 App 按授權）" else "Shizuku 沒在跑"); return@Thread }
+            if (!Shz.granted()) { setState(getString(if (Shz.alive()) R.string.s_need_grant else R.string.s_shizuku_down)); return@Thread }
             val r = Route.start(this)
             Thread.sleep(2500)
-            setState(if (Route.ruleOn()) "分流中" else "啟動結果：$r")
+            setState(if (Route.ruleOn()) getString(R.string.s_split) else getString(R.string.s_result, r))
         }.start()
     }
 
@@ -73,10 +74,10 @@ class MonitorService : Service() {
 
     private fun notif(): Notification {
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        nm.createNotificationChannel(NotificationChannel("route", "分流狀態", NotificationManager.IMPORTANCE_MIN))
+        nm.createNotificationChannel(NotificationChannel("route", getString(R.string.ch_route), NotificationManager.IMPORTANCE_MIN))
         val pi = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         return Notification.Builder(this, "route").setSmallIcon(android.R.drawable.ic_lock_silent_mode_off)
-            .setContentTitle("SplitAudio：$state").setContentIntent(pi).setOngoing(true).build()
+            .setContentTitle(getString(R.string.notif_title, state)).setContentIntent(pi).setOngoing(true).build()
     }
 
     companion object {

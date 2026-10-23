@@ -1,5 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">SplitAudio 分流</string>
-    <string name="acc_desc">藍牙只放音樂時，在其他 App 畫面按音量鍵＝調手機喇叭；音樂 App／桌面照常調藍牙。只讀前景 App 名稱，不讀畫面內容。</string>
+    <string name="app_name">SplitAudio</string>
+    <string name="acc_desc">While Bluetooth plays only the music app, the volume keys in other apps change the phone speaker volume; in the music app or on the home screen they change Bluetooth as usual. Reads only the foreground app\'s name, never screen content.</string>
+    <string name="intro">SplitAudio\nThe music app (YT Music) stays on Bluetooth; every other app plays on the phone speaker.</string>
+    <string name="btn_shizuku">① Grant Shizuku</string>
+    <string name="btn_acc">② Enable accessibility (volume keys → phone speaker)</string>
+    <string name="btn_start">Start split now</string>
+    <string name="btn_stop">Stop split</string>
+    <string name="btn_mf">On / off: videos don\'t pause the music</string>
+    <string name="btn_refresh">Refresh</string>
+    <string name="mf_result">Videos don\'t pause the music → %1$s</string>
+    <string name="st_shizuku">Shizuku: %1$s</string>
+    <string name="st_acc">Accessibility (volume keys): %1$s</string>
+    <string name="st_split">Split: %1$s</string>
+    <string name="st_mf">Videos don\'t pause the music: %1$s</string>
+    <string name="st_last">Last start: %1$s</string>
+    <string name="v_not_running">not running</string>
+    <string name="v_granted">granted ✓</string>
+    <string name="v_not_granted">not granted</string>
+    <string name="v_on">on ✓</string>
+    <string name="v_off">off</string>
+    <string name="split_on">active ✓</string>
+    <string name="split_waiting">router running, waiting for music</string>
+    <string name="split_none">not running (starts by itself when Bluetooth is connected and music plays)</string>
+    <string name="mf_off_auto">off (turned on by itself the first time the split starts)</string>
+    <string name="mf_off_user">off (you turned it off, it won\'t turn on by itself)</string>
+    <string name="s_split">Split active</string>
+    <string name="s_bt_idle">Bluetooth connected (no music playing)</string>
+    <string name="s_idle">Idle</string>
+    <string name="s_router_wait">Idle (router running, waiting for the music app)</string>
+    <string name="s_need_grant">Grant Shizuku (open the app and tap Grant)</string>
+    <string name="s_shizuku_down">Shizuku is not running</string>
+    <string name="s_result">Start result: %1$s</string>
+    <string name="ch_route">Split status</string>
+    <string name="notif_title">SplitAudio: %1$s</string>
+    <string name="toast_vol">Phone speaker volume %1$s%%</string>
 </resources>

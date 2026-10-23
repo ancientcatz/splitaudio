@@ -45,7 +45,7 @@ class VolKeyService : AccessibilityService() {
         Thread {
             val r = Route.ask("vol $dir $fg")
             main.post {
-                if (r != null && r.startsWith("ok ")) Toast.makeText(this, "手機喇叭音量 ${r.substring(3)}%", Toast.LENGTH_SHORT).show()
+                if (r != null && r.startsWith("ok ")) Toast.makeText(this, getString(R.string.toast_vol, r.substring(3)), Toast.LENGTH_SHORT).show()
                 else try {   // 不是走喇叭的 App／規則剛好拿掉 → 這次按鍵已被攔，自己照原本調藍牙
                     (getSystemService(Context.AUDIO_SERVICE) as AudioManager).adjustStreamVolume(AudioManager.STREAM_MUSIC,
                         if (dir == "up") AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
