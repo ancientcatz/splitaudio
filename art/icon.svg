@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6A1B9A"/><stop offset="1" stop-color="#EC407A"/></linearGradient>
+  <radialGradient id="glow" cx="0.35" cy="0.25" r="0.8"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+  <filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="7"/></filter>
+  <linearGradient id="phoneBody" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4B5663"/><stop offset="1" stop-color="#151A21"/></linearGradient>
+  <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4FC3F7"/><stop offset="0.55" stop-color="#FFB74D"/><stop offset="1" stop-color="#FF7043"/></linearGradient>
+  <linearGradient id="glass" x1="0" y1="0" x2="1" y2="0.6"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.28"/><stop offset="0.45" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient>
+  <linearGradient id="fabric" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1F2A30"/><stop offset="0.35" stop-color="#5E7581"/><stop offset="0.6" stop-color="#455A64"/><stop offset="1" stop-color="#162026"/></linearGradient>
+  <linearGradient id="cap" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0D47A1"/><stop offset="0.4" stop-color="#42A5F5"/><stop offset="1" stop-color="#0D47A1"/></linearGradient>
+  <pattern id="mesh" width="7" height="7" patternUnits="userSpaceOnUse"><circle cx="3.5" cy="3.5" r="1.5" fill="#000" fill-opacity="0.32"/></pattern>
+  <radialGradient id="cone" cx="0.42" cy="0.38" r="0.65"><stop offset="0" stop-color="#78909C"/><stop offset="0.7" stop-color="#263238"/><stop offset="1" stop-color="#0E1418"/></radialGradient>
+  <radialGradient id="dust" cx="0.35" cy="0.3" r="0.7"><stop offset="0" stop-color="#ECEFF1"/><stop offset="1" stop-color="#546E7A"/></radialGradient>
+  <clipPath id="spk"><rect x="288" y="116" width="148" height="236" rx="52"/></clipPath>
+</defs><rect width="512" height="512" rx="112" fill="url(#bg)"/><rect width="512" height="512" rx="112" fill="url(#glow)"/>
+<!-- shadows -->
+<ellipse cx="150" cy="356" rx="74" ry="11" fill="#000" opacity="0.35" filter="url(#sh)"/>
+<ellipse cx="362" cy="358" rx="80" ry="12" fill="#000" opacity="0.35" filter="url(#sh)"/>
+<!-- phone -->
+<rect x="70" y="84" width="160" height="266" rx="32" fill="url(#phoneBody)" stroke="#9AA6B2" stroke-width="3"/>
+<rect x="229" y="140" width="6" height="36" rx="3" fill="#7D8995"/><rect x="229" y="186" width="6" height="22" rx="3" fill="#7D8995"/>
+<rect x="81" y="96" width="138" height="242" rx="23" fill="url(#screen)"/>
+<circle cx="182" cy="168" r="20" fill="#FFF59D" opacity="0.9"/>
+<path d="M81,272 L120,232 L146,256 L178,218 L219,262 L219,315 Q219,338 196,338 L104,338 Q81,338 81,315 Z" fill="#4E342E" opacity="0.55"/>
+<circle cx="150" cy="222" r="31" fill="#FFFFFF" opacity="0.92"/>
+<path d="M140,205 L140,239 L168,222 Z" fill="#FF3D00"/>
+<rect x="95" y="314" width="110" height="5" rx="2.5" fill="#FFFFFF" opacity="0.55"/>
+<rect x="95" y="314" width="62" height="5" rx="2.5" fill="#FF1744"/>
+<circle cx="157" cy="316.5" r="6.5" fill="#FF1744" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="150" cy="109" r="5.5" fill="#0B0F14"/>
+<rect x="81" y="96" width="138" height="242" rx="23" fill="url(#glass)"/>
+<!-- bluetooth speaker -->
+<g clip-path="url(#spk)">
+  <rect x="288" y="116" width="148" height="236" fill="url(#fabric)"/>
+  <rect x="288" y="116" width="148" height="236" fill="url(#mesh)"/>
+  <rect x="288" y="116" width="148" height="30" fill="url(#cap)"/>
+  <rect x="288" y="322" width="148" height="30" fill="url(#cap)"/>
+</g>
+<rect x="288" y="116" width="148" height="236" rx="52" fill="none" stroke="#0A1A2A" stroke-opacity="0.5" stroke-width="2"/>
+<circle cx="362" cy="250" r="52" fill="#0E1418"/>
+<circle cx="362" cy="250" r="49" fill="url(#cone)" stroke="#90A4AE" stroke-width="3"/>
+<circle cx="362" cy="250" r="34" fill="none" stroke="#000" stroke-opacity="0.35" stroke-width="2"/>
+<circle cx="362" cy="250" r="15" fill="url(#dust)"/>
+<circle cx="362" cy="176" r="15" fill="#1E88E5" stroke="#BBDEFB" stroke-width="2"/>
+<path d="M355,169 L369,180 L362,186 L362,163 L369,169 L355,180" stroke="#FFFFFF" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M452,222 Q466,250 452,278" stroke="#FFFFFF" stroke-width="7" fill="none" stroke-linecap="round" opacity="0.9"/>
+<path d="M470,206 Q492,250 470,294" stroke="#FFFFFF" stroke-width="7" fill="none" stroke-linecap="round" opacity="0.6"/>
+<!-- music notes -->
+<g fill="#FFFFFF">
+  <path d="M392,48 L438,38 L438,88" stroke="#FFFFFF" stroke-width="8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M392,48 L392,100" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round"/>
+  <ellipse cx="380" cy="102" rx="15" ry="11"/>
+  <ellipse cx="426" cy="90" rx="15" ry="11"/>
+</g>
+<!-- one source, split two ways -->
+
+<path d="M256,438 Q256,410 228,410 L178,410 Q150,410 150,382 L150,376" stroke="#FFB74D" stroke-width="20" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M256,438 Q256,410 284,410 L334,410 Q362,410 362,382 L362,376" stroke="#4FC3F7" stroke-width="20" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M256,476 L256,428" stroke="#FFFFFF" stroke-width="20" stroke-linecap="round"/><path d="M150,352 L126,384 L174,384 Z" fill="#FFB74D"/>
+<path d="M362,352 L338,384 L386,384 Z" fill="#4FC3F7"/>
+</svg>
