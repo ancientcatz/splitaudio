@@ -48,4 +48,24 @@
     <string name="ch_route">Split status</string>
     <string name="notif_title">SplitAudio: %1$s</string>
     <string name="toast_vol">Phone speaker volume %1$s%%</string>
+    <string name="hero_sub">Music stays on Bluetooth, everything else on the phone speaker — or pick an output for each app.</string>
+    <string name="sec_required">① Required setup</string>
+    <string name="sec_custom">② Customize</string>
+    <string name="row_shizuku">Shizuku</string>
+    <string name="row_shizuku_d">Lets SplitAudio set system audio routes (no root needed).</string>
+    <string name="row_acc">Volume keys</string>
+    <string name="row_acc_d">In speaker apps, the volume keys change the phone speaker.</string>
+    <string name="btn_grant">Grant</string>
+    <string name="btn_open">Open settings</string>
+    <string name="chip_recommended">recommended</string>
+    <string name="mode_title">Mode</string>
+    <string name="mode_simple">Simple</string>
+    <string name="mode_custom">Custom</string>
+    <string name="mode_simple_d">Music app (YT Music) → Bluetooth, every other app → phone speaker.</string>
+    <string name="mode_custom_d">You choose the output for each app.</string>
+    <string name="mf_title">Videos don\'t pause the music</string>
+    <string name="mf_desc">Lets two apps play at the same time.</string>
+    <string name="live_on">Split active</string>
+    <string name="live_wait">Waiting for music</string>
+    <string name="live_none">Not running</string>
 </resources>

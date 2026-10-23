@@ -4,7 +4,9 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -31,10 +33,16 @@ class AppsActivity : Activity() {
         super.onCreate(b)
         val dp = resources.displayMetrics.density
         val pad = (12 * dp).toInt()
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, pad, pad, 0) }
-        root.addView(TextView(this).apply { textSize = 14f; text = getString(R.string.apps_hint) })
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(pad, pad, pad, 0)
+            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(MainActivity.C_BG_TOP, MainActivity.C_BG_BOTTOM))
+        }
+        root.addView(TextView(this).apply { textSize = 22f; text = "🎛️ " + getString(R.string.apps_title); setTextColor(MainActivity.C_PURPLE); setTypeface(typeface, Typeface.BOLD) })
+        root.addView(TextView(this).apply { textSize = 13f; text = getString(R.string.apps_hint); setTextColor(MainActivity.C_TEXT_2); setPadding(0, pad / 2, 0, pad / 2) })
         root.addView(EditText(this).apply {
-            hint = getString(R.string.apps_search); isSingleLine = true
+            hint = "🔍 " + getString(R.string.apps_search); isSingleLine = true; textSize = 15f
+            setPadding(pad, pad * 3 / 4, pad, pad * 3 / 4)
+            background = GradientDrawable().apply { cornerRadius = 24 * dp; setColor(Color.WHITE); setStroke((2 * dp).toInt(), Color.rgb(206, 147, 216)) }
             addTextChangedListener(object : TextWatcher {
                 override fun afterTextChanged(s: Editable?) { query = s?.toString().orEmpty().trim(); filter() }
                 override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
@@ -51,14 +59,18 @@ class AppsActivity : Activity() {
                 (row.getChildAt(0) as ImageView).setImageDrawable(a.icon)
                 val col = row.getChildAt(1) as LinearLayout
                 (col.getChildAt(0) as TextView).text = a.label
-                (col.getChildAt(1) as TextView).apply {
-                    text = Outputs.label(this@AppsActivity, o)
-                    setTextColor(when (o) { "speaker" -> Color.rgb(230, 81, 0); "bt" -> Color.rgb(21, 101, 192); "wired" -> Color.rgb(46, 125, 50); else -> Color.GRAY })
+                (col.getChildAt(1) as TextView).apply {   // 輸出膠囊：喇叭橘、藍牙藍、耳機綠、預設灰
+                    text = when (o) { "speaker" -> "📱 "; "bt" -> "🎧 "; "wired" -> "🔌 "; else -> "" } + Outputs.label(this@AppsActivity, o)
+                    (background as GradientDrawable).setColor(when (o) { "speaker" -> MainActivity.C_ORANGE; "bt" -> MainActivity.C_BLUE; "wired" -> MainActivity.C_GREEN; else -> Color.rgb(207, 216, 220) })
+                    setTextColor(if (o == "default") MainActivity.C_TEXT_2 else Color.WHITE)
                 }
                 return row
             }
         }
-        val lv = ListView(this).apply { adapter = this@AppsActivity.adapter; setOnItemClickListener { _, _, i, _ -> pick(shown[i]) } }
+        val lv = ListView(this).apply {
+            adapter = this@AppsActivity.adapter; divider = null; dividerHeight = (8 * dp).toInt(); setPadding(0, pad, 0, pad); clipToPadding = false
+            setOnItemClickListener { _, _, i, _ -> pick(shown[i]) }
+        }
         root.addView(lv, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(root)
         Thread {
@@ -71,13 +83,18 @@ class AppsActivity : Activity() {
     }
 
     private fun row(dp: Float): LinearLayout = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        val p = (8 * dp).toInt(); setPadding(0, p, 0, p)
+        orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL
+        val p = (10 * dp).toInt(); setPadding(p + p / 2, p, p, p)
+        background = GradientDrawable().apply { cornerRadius = 18 * dp; setColor(Color.WHITE) }
         addView(ImageView(this@AppsActivity), LinearLayout.LayoutParams((40 * dp).toInt(), (40 * dp).toInt()).apply { rightMargin = (12 * dp).toInt() })
         addView(LinearLayout(this@AppsActivity).apply {
             orientation = LinearLayout.VERTICAL
-            addView(TextView(this@AppsActivity).apply { textSize = 16f })
-            addView(TextView(this@AppsActivity).apply { textSize = 13f })
+            addView(TextView(this@AppsActivity).apply { textSize = 16f; setTextColor(MainActivity.C_TEXT); setTypeface(typeface, Typeface.BOLD) })
+            addView(TextView(this@AppsActivity).apply {
+                textSize = 12f; setTypeface(typeface, Typeface.BOLD)
+                val h = (10 * dp).toInt(); val v = (3 * dp).toInt(); setPadding(h, v, h, v)
+                background = GradientDrawable().apply { cornerRadius = 12 * dp; setColor(Color.LTGRAY) }
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = (4 * dp).toInt() })
         })
     }
 
