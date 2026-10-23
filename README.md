@@ -1,5 +1,7 @@
 # SplitAudio — 藍牙只放音樂，其他 App 走手機喇叭 / Music on Bluetooth, everything else on the phone speaker
 
+<img src="fastlane/metadata/android/en-US/images/icon.png" width="112" align="right" alt="SplitAudio icon">
+
 > **狀態：alpha（實驗版）。** 只在 Xiaomi 15（HyperOS 3、Android 16）實機驗證過。需要 [Shizuku](https://shizuku.rikka.app/)，**不需要 root**。
 > **Status: alpha.** Verified on one device only: Xiaomi 15 (HyperOS 3, Android 16). Needs [Shizuku](https://shizuku.rikka.app/), **no root**.
 

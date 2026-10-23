@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher icon foreground: video on the phone (left), music on the Bluetooth speaker (right), one source split two ways.
+     Same drawing as fastlane icon.png; scaled into the adaptive-icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="512" android:viewportHeight="512">
+    <group android:pivotX="256" android:pivotY="256" android:scaleX="0.6" android:scaleY="0.6">
+        <path android:fillColor="#FFFFFF" android:pathData="M106,96 H196 A28,28 0 0 1 224,124 V304 A28,28 0 0 1 196,332 H106 A28,28 0 0 1 78,304 V124 A28,28 0 0 1 106,96 Z"/>
+        <path android:fillColor="#FF7043" android:pathData="M105,122 H197 A12,12 0 0 1 209,134 V286 A12,12 0 0 1 197,298 H105 A12,12 0 0 1 93,286 V134 A12,12 0 0 1 105,122 Z"/>
+        <path android:fillColor="#FFFFFF" android:pathData="M133,174 L133,246 L190,210 Z"/>
+        <path android:fillColor="#FFFFFF" android:pathData="M332,134 H390 A44,44 0 0 1 434,178 V288 A44,44 0 0 1 390,332 H332 A44,44 0 0 1 288,288 V178 A44,44 0 0 1 332,134 Z"/>
+        <path android:fillColor="#29B6F6" android:pathData="M313,260 A48,48 0 1 1 409,260 A48,48 0 1 1 313,260 Z"/>
+        <path android:fillColor="#FFFFFF" android:pathData="M343,260 A18,18 0 1 1 379,260 A18,18 0 1 1 343,260 Z"/>
+        <path android:strokeColor="#29B6F6" android:strokeWidth="6" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M351,170 L371,186 L361,194 L361,158 L371,166 L351,182"/>
+        <path android:strokeColor="#FFFFFF" android:strokeWidth="11" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M404,40 L404,100"/>
+        <path android:strokeColor="#FFFFFF" android:strokeWidth="11" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M404,40 Q432,48 440,74"/>
+        <path android:fillColor="#FFFFFF" android:pathData="M371,102 A19,14 0 1 1 409,102 A19,14 0 1 1 371,102 Z"/>
+        <path android:strokeColor="#FFFFFF" android:strokeWidth="20" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M256,474 L256,436 Q256,408 228,408 L179,408 Q151,408 151,380 L151,372 M256,436 Q256,408 284,408 L333,408 Q361,408 361,380 L361,372"/>
+        <path android:fillColor="#FFFFFF" android:pathData="M151,346 L128,378 L174,378 Z"/>
+        <path android:fillColor="#FFFFFF" android:pathData="M361,346 L338,378 L384,378 Z"/>
+    </group>
+</vector>
