@@ -1,1 +1,2 @@
-New: Custom mode. Pick the output for each app: phone speaker, Bluetooth, wired/USB headphones, or follow the system. Simple mode (music app on Bluetooth, everything else on the speaker) stays the default.
+New: Custom mode. Pick the output for each app: phone speaker, Bluetooth, wired/USB headphones, or follow the system (any music app works, not only YouTube Music). Simple mode stays the default; Custom mode with no app chosen behaves like Simple mode.
+New colourful layout: "Required setup" and "Customize" sections, and a new icon.
