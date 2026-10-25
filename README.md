@@ -5,6 +5,9 @@
 > **狀態：alpha（實驗版）。** 只在 Xiaomi 15（HyperOS 3、Android 16）實機驗證過。需要 [Shizuku](https://shizuku.rikka.app/)，**不需要 root**。
 > **Status: alpha.** Verified on one device only: Xiaomi 15 (HyperOS 3, Android 16). Needs [Shizuku](https://shizuku.rikka.app/), **no root**.
 
+> ⭐ **好用的話，請按右上角的 Star 給個星星！** 這是我們知道有人在用、繼續維護下去的最大動力。
+> ⭐ **If this app is useful to you, please give it a Star (top-right).** It's how we know people use it, and it keeps the project going.
+
 藍牙喇叭正在放 YouTube Music，你一打開 Facebook／IG／TikTok 滑影片，影片聲音也跟著跑到藍牙喇叭。
 Android 沒有「指定某個 App 從哪裡出聲」的設定（三星的「個別應用程式聲音」只有三星有）。
 SplitAudio 讓 **音樂 App 留在藍牙、其他所有 App 改走手機喇叭**。
