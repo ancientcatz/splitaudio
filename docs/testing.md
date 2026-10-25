@@ -140,7 +140,36 @@ draft release.** Specifically:
 - Dynamic color: change wallpaper on Android 12+ → confirm the app's color scheme
   updates.
 
+## v0.4.2 — UI polish pass (commit `3e7a0e8`)
+
+| Step                | Result      | Artifact size | Notes |
+| ------------------- | ----------- | ------------- | ----- |
+| `route/build_dex.sh`| SUCCESS     | 17,148 B dex  | unchanged |
+| `assembleDebug`      | SUCCESS     | 62,549,428 B  | Compose tooling in debug |
+| `assembleRelease` (R8 full mode) | SUCCESS | 3,967,408 B | similar to v0.4.1 |
+| `:app:lintRelease`   | SUCCESS     | —             | no critical issues |
+| R8 mapping generated | YES         | ~29.8 MB      | confirms obfuscation ran |
+| Shizuku class kept   | YES         | —             | `rikka.shizuku.Shizuku -> rikka.shizuku.Shizuku:` |
+| `Shz.newProcess` method kept | YES | —             | `app.splitaudio.Shz.newProcess(java.lang.String):16:16 -> c` |
+
+### CI run
+
+- Run ID: `40199651320`
+- Commit: `3e7a0e8aeceaadf9be1c68b1e94a16bae6347c28`
+- Status: `completed` / `success` in 6m45s.
+
+### Draft release
+
+- Tag: `v0.4.2`, target commit: `3e7a0e8`
+- Title: "SplitAudio v0.4.2 (Material 3 UI polish — DRAFT, UNSIGNED)"
+- Asset: `splitaudio-v0.4.2-release-UNSIGNED.apk` (3,967,408 bytes)
+- `isDraft=true`
+
 ## Final verified application commit
+
+`3e7a0e8aeceaadf9be1c68b1e94a16bae6347c28` on `feat/material3-redesign`.
+
+## Final verified application commit (v0.4.1 — superseded)
 
 `c74f831bc10bbdd88f5427461bc5bb550c38ccfe` on `feat/material3-redesign`.
 

@@ -9,25 +9,26 @@ of the SplitAudio Android app.
 | Branch                       | Purpose                                                                       | Commit |
 | ---------------------------- | ----------------------------------------------------------------------------- | ------ |
 | `main`                       | Original application source — do not modify directly.                         | `a0777eb` |
-| `feat/material3-redesign`   | Application source for the Material 3 redesign (v0.4.1 Compose rewrite).      | `c74f831` |
+| `feat/material3-redesign`   | Application source for the Material 3 redesign (v0.4.2 Compose rewrite).      | `3e7a0e8` |
 | `docs/material3-redesign`   | This orphan branch — documentation only, no application source tree.         | (latest) |
 
 The `docs/material3-redesign` branch was created with `git checkout --orphan` so that its
 first commit has no parent. It contains no application source.
 
-## Current status (v0.4.1)
+## Current status (v0.4.2)
 
 | Item                         | State                                                                                                  |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------ |
 | Mandatory skill              | `material-design-3-ui` v1.1.1 installed, used throughout design.                                       |
 | Implementation               | **Complete Compose Material 3 rewrite** — `Scaffold` + `LargeTopAppBar` + `LazyColumn` + M3 components. |
-| Application branch           | `feat/material3-redesign` @ `c74f831` (pushed, CI green).                                              |
+| Application branch           | `feat/material3-redesign` @ `3e7a0e8` (pushed, CI green).                                              |
 | Documentation branch         | `docs/material3-redesign` (orphan, no parent commit, pushed).                                            |
 | Baseline build (commit `a0777eb`) | Debug APK 5.3 MB ✓; release APK 4.5 MB ✓; lint ✓.                                                  |
-| v0.4.0 (superseded)          | View-based reskin — built and passed CI, but user review found broken layout. Superseded by v0.4.1. |
-| **v0.4.1 (current)**         | Compose Material 3 rewrite — debug 62.5 MB; **R8 release 3.9 MB**; lint ✓; R8 verified.              |
-| CI workflow                  | `Android CI (Material 3)` run ID `40194565007`: `completed` / `success` in 4m58s.                     |
-| Draft release                | `v0.4.1` (DRAFT, UNSIGNED) — created; asset `splitaudio-v0.4.1-release-UNSIGNED.apk` (3,946,816 B). |
+| v0.4.0 (superseded)          | View-based reskin — built and passed CI, but user review found broken layout. Superseded by v0.4.2. |
+| **v0.4.2 (current)**         | UI polish pass on v0.4.2 (icon halos, button icons, animated status, loading + empty states, highlighted selected option in bottom sheet) — debug 62.5 MB; **R8 release 3.97 MB**; lint ✓; R8 verified.              |
+| v0.4.2 (superseded)         | Compose Material 3 rewrite — debug 62.5 MB; **R8 release 3.9 MB**; lint ✓; R8 verified.              |
+| CI workflow                  | `Android CI (Material 3)` run ID `40199651320`: `completed` / `success` in 4m58s.                     |
+| Draft release                | `v0.4.2` (DRAFT, UNSIGNED) — created; asset `splitaudio-v0.4.2-release-UNSIGNED.apk` (3,946,816 B). |
 | Latest verified application commit | `c74f831bc10bbdd88f5427461bc5bb550c38ccfe` on `feat/material3-redesign`.                          |
 
 ## Outstanding (user must complete before publishing)
@@ -35,7 +36,7 @@ first commit has no parent. It contains no application source.
 1. **Configure signing secrets** — add `ANDROID_KEYSTORE_BASE64`,
    `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` to the
    repository's GitHub Actions secrets.
-2. **Re-run the release workflow** on the `v0.4.1` tag to produce a signed APK and
+2. **Re-run the release workflow** on the `v0.4.2` tag to produce a signed APK and
    replace the unsigned asset on the draft release.
 3. **On-device smoke test** — install the signed APK and exercise the primary flow.
 
@@ -64,11 +65,11 @@ The official `material-design-3-ui` skill (from `skydashnet/material-design-3-ui
 is installed at `/home/z/my-project/skills/material-design-3-ui`. Its `SKILL.md` is
 readable, it ships with 13 reference documents, and it is discoverable through the local
 skill index. The design decisions in `design-system.md` were made by applying the skill's
-workflow and self-audit rubric — the v0.4.1 Compose rewrite scores 16/16 on the self-audit.
+workflow and self-audit rubric — the v0.4.2 Compose rewrite scores 16/16 on the self-audit.
 
 ## Quick links
 
-- Draft release: https://github.com/ancientcatz/splitaudio/releases/tag/untagged-c32d926ca92247b3c61a
-- CI workflow run (v0.4.1): https://github.com/ancientcatz/splitaudio/actions/runs/40194565007
+- Draft release: https://github.com/ancientcatz/splitaudio/releases/tag/untagged-efcf5ce0f9cbd425af8d
+- CI workflow run (v0.4.2): https://github.com/ancientcatz/splitaudio/actions/runs/40199651320
 - Application branch: https://github.com/ancientcatz/splitaudio/tree/feat/material3-redesign
 - Documentation branch: https://github.com/ancientcatz/splitaudio/tree/docs/material3-redesign

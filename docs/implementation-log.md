@@ -2,6 +2,62 @@
 
 (Reverse chronological — most recent first.)
 
+## 2026-10-25 — v0.4.2: UI polish pass
+
+The user reviewed the v0.4.1 Compose Material 3 rewrite on a real device and
+asked for further polish — explicitly *without* redesigning the UI. This commit
+delivers visual refinement only: no architectural changes, no new dependencies,
+no string changes.
+
+### Changes
+
+**Home screen (MainActivity):**
+- **Status card**: icon now sits in a circular tonal "halo" (`onContainer` @ 12% alpha)
+  instead of floating bare. Icon switches per state — `GraphicEq` (active), `Pending`
+  (waiting), `MusicOff` (idle). `AnimatedContent` smoothly transitions the icon
+  (`scaleIn + fadeIn`) and status text (`fadeIn`) when state changes.
+- **Start/Stop buttons**: leading icons added (`PlayArrow` / `Stop`) — explicit
+  affordance beyond the label. `CircularProgressIndicator` stays as the spinner.
+- **Hero subtitle** restored as the first `LazyColumn` item (was present in original
+  strings.xml, accidentally removed in v0.4.0).
+- **Setup + Customize section headers**: now sit in a small circular
+  `primaryContainer` / `tertiaryContainer` "badge" with the section icon. The title
+  has a visual anchor instead of being a bare colored string.
+- **Setup row icons**: now live inside a 40 dp circular `surfaceContainerHighest`
+  "avatar" — visually consistent with the section header badges.
+- **StatusChip**: now carries a leading mini-icon (`CheckCircle` for OK, `Pending`
+  for warning, `RadioButtonUnchecked` for error). Triple-coded state (color + icon +
+  label) instead of color-only — important for accessibility.
+
+**Apps screen (AppsActivity):**
+- **App icons** in the list: clipped to a 10 dp rounded corner instead of bare
+  square — matches M3 card/list shape language.
+- **Search field**: added a trailing clear-search `IconButton` (`Close` icon) that
+  appears only when the query is non-empty.
+- **Loading state**: while apps are being enumerated, shows a centered
+  `CircularProgressIndicator` + "Loading apps…" label instead of an empty list.
+- **Empty state**: when search returns nothing, shows a centered `Search` icon +
+  `No apps match "<query>"` + `Try a different search term.` instead of an empty list.
+- **Bottom sheet output picker**: added a small "Output" section label below the app
+  name. Each option row is wrapped in a tonal `secondaryContainer` highlight when
+  selected (with a `CheckCircle` icon at the trailing edge). Selected option's label
+  is bolded and uses `onSecondaryContainer` for emphasis; unselected rows stay
+  transparent.
+
+### Verification
+
+- Build: debug APK 62.5 MB; **R8 release APK 3.97 MB** (essentially unchanged from v0.4.1's 3.95 MB).
+- R8 mapping confirms `rikka.shizuku.Shizuku` class + `Shz.newProcess` method still kept.
+- All manifest components preserved.
+- CI run `40199651320`: `completed` / `success` in 6m45s.
+- Draft release `v0.4.2` created with the unsigned APK asset (3,967,408 bytes).
+- Old v0.4.1 draft release deleted (superseded).
+
+### Outstanding
+
+- Signing secrets still not configured (same as v0.4.0 / v0.4.1).
+- On-device runtime verification still not possible (no emulator/device).
+
 ## 2026-10-25 — v0.4.1: Complete Compose Material 3 rewrite
 
 The user reviewed the v0.4.0 implementation and found it was a superficial reskin
