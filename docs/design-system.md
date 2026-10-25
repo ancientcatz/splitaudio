@@ -1,7 +1,8 @@
-# Material 3 Design System (SplitAudio)
+# Material 3 Design System (SplitAudio) — Compose edition
 
 This document specifies the Material 3 design system applied to the SplitAudio redesign.
-It is written by applying the `material-design-3-ui` skill (v1.1.1).
+It is the result of applying the `material-design-3-ui` skill (v1.1.1) to a complete
+Jetpack Compose rewrite.
 
 ## Design intent
 
@@ -9,177 +10,169 @@ It is written by applying the `material-design-3-ui` skill (v1.1.1).
   show, at a glance, whether routing is on, what the required permissions need, and how
   to switch between Simple and Custom modes.
 - **Information hierarchy**: status first, required setup second, customization third.
-- **Adaptive behavior**: SplitAudio is a single-pane phone app; the layout must remain
-  readable from 360 dp to 600 dp wide and in portrait/landscape. No tablet-specific
-  panes are added (would be decorative only).
-- **M3 Expressive**: applied sparingly — a single tonal hero gradient and color-coded
-  status card. All other surfaces stay calm.
+- **Adaptive behavior**: single-pane phone app; layout remains readable from 360 dp to
+  600 dp. `LargeTopAppBar` collapses on scroll.
+- **M3 Expressive**: applied sparingly — a single state-colored status card and
+  `AnimatedVisibility` on the "Choose output per app" button. All other surfaces stay calm.
 
-## Token hierarchy
+## Implementation
 
-We use the M3 hierarchy: **reference/system tokens → semantic/system roles → component
-tokens**. Screens use semantic roles only — no raw ARGB literals.
+- **Framework**: Jetpack Compose (`androidx.compose.material3:material3`)
+- **Activity**: `ComponentActivity` + `setContent { SplitAudioTheme { Screen() } }`
+- **Theme**: `SplitAudioTheme` composable — `MaterialTheme(colorScheme = …)`
+- **Dynamic color**: Android 12+ uses `dynamicLightColorScheme` / `dynamicDarkColorScheme`
+  derived from the user's wallpaper. Android 11 and below falls back to a seeded M3
+  baseline purple palette (defined in `Theme.kt`).
+- **Edge-to-edge**: `enableEdgeToEdge()` in each Activity's `onCreate`.
 
 ## Color roles
 
-The redesign adds `com.google.android.material:material:1.12.0` and uses
-`Theme.Material3.DayNight` as the parent theme. Colors are emitted by the M3 theme
-builder (a tonal palette seeded by a primary brand color, with light and dark schemes).
-The app uses dynamic color on Android 12+ (`android:windowBackground` picks up
-`?android:attr/colorBackground` from the dynamic system) and falls back to a fixed
-seeded scheme on Android 11 and below.
+All colors resolve from `MaterialTheme.colorScheme.*` — zero hardcoded ARGB literals
+in any screen. The hierarchy is **reference/system tokens → semantic roles → component
+tokens**, applied automatically by the M3 Compose library.
 
-Semantic roles used by the app:
+| Role                             | Where it is used                                                     |
+| -------------------------------- | -------------------------------------------------------------------- |
+| `colorPrimary`                   | Start button (filled), section header tint, output chip (bt)        |
+| `colorOnPrimary`                 | text on filled button                                               |
+| `colorPrimaryContainer`         | status card (active state), Shizuku chip (ok), output chip (bt)      |
+| `colorOnPrimaryContainer`       | text on primary container                                           |
+| `colorSecondary`                 | output chip (wired), secondary accent                               |
+| `colorSecondaryContainer`       | output chip (wired)                                                  |
+| `colorTertiary`                  | Customize section header tint, output chip (speaker)                 |
+| `colorTertiaryContainer`        | recommended-status chip, output chip (speaker)                       |
+| `colorError`                     | (reserved for destructive/error emphasis)                            |
+| `colorErrorContainer`           | error-status chip (Shizuku not running)                              |
+| `colorSurface`                   | screen background, default card background                           |
+| `colorOnSurface`                 | primary body text                                                    |
+| `colorSurfaceVariant`           | status card (idle state), default output chip                        |
+| `colorOnSurfaceVariant`         | secondary body text, icon tints on setup rows                        |
+| `colorSurfaceContainerLow`      | setup/customize card backgrounds                                     |
+| `colorOutline`                   | (reserved for outlined component borders)                            |
+| `colorOutlineVariant`           | `HorizontalDivider` between setup rows and customize sections       |
 
-| Role                  | Where it is used                                                     |
-| --------------------- | -------------------------------------------------------------------- |
-| `?attr/colorPrimary`  | hero gradient start, primary CTA filled buttons, "active" status    |
-| `?attr/colorOnPrimary`| text/icons on primary surfaces, hero title text                      |
-| `?attr/colorPrimaryContainer` | Custom mode selected segment, accent headers                  |
-| `?attr/colorOnPrimaryContainer`| text on primary container                                  |
-| `?attr/colorSecondary`| secondary chips, "waiting" status accent                            |
-| `?attr/colorTertiary` | Custom mode button (when not selected)                              |
-| `?attr/colorError`    | stop button, "not granted" chip, "Shizuku down" state               |
-| `?attr/colorOnError`  | text on error surfaces                                              |
-| `?attr/colorSurface`  | default card backgrounds                                            |
-| `?attr/colorOnSurface`| primary body text                                                   |
-| `?attr/colorOnSurfaceVariant`| secondary body text, chip borders                          |
-| `?attr/colorSurfaceVariant`| dividers, secondary card backgrounds                          |
-| `?attr/colorOutlineVariant`| thin separators                                          |
-| `?attr/colorOutline`  | outlined-button borders                                             |
+### Status card color mapping
 
-Status colors (semantic):
+The status card uses `CardDefaults.cardColors(containerColor = …)` driven by state:
 
-- "Split active" → `colorPrimary` (filled status card)
-- "Waiting for music" → `colorSecondary`
-- "Not running / idle" → `colorSurfaceVariant` + `colorOnSurfaceVariant`
-- "Shizuku down" → `colorError`
+- **Active** (`"on"`) → `primaryContainer` + `onPrimaryContainer` + `Icons.Filled.GraphicEq`
+- **Waiting** (`"off"`) → `secondaryContainer` + `onSecondaryContainer` + `Icons.Filled.Pending`
+- **Idle** (`null`) → `surfaceVariant` + `onSurfaceVariant` + `Icons.Filled.RadioButtonUnchecked`
 
-Output chips (custom mode): speaker / bt / wired / default use secondaryContainer /
-tertiaryContainer / primaryContainer / surfaceVariant respectively — color never
-communicates meaning alone; each chip also carries a leading emoji (`📱 🎧 🔌 ⚙`) and
+### Output chip color mapping
+
+Each output key maps to a tonal container role:
+
+| Key       | Label    | Icon                | Container             | Content              |
+| --------- | -------- | ------------------- | --------------------- | -------------------- |
+| `speaker` | Speaker  | `Smartphone`        | `tertiaryContainer`   | `onTertiaryContainer` |
+| `bt`      | Bluetooth| `Bluetooth`         | `primaryContainer`    | `onPrimaryContainer`  |
+| `wired`   | Wired    | `Headphones`        | `secondaryContainer`  | `onSecondaryContainer`|
+| `default` | Default  | `Tune`              | `surfaceVariant`      | `onSurfaceVariant`    |
+
+Color never communicates meaning alone — each chip also carries a leading icon and
 a localized label.
 
 ## Typography
 
-M3 type scale (used via `TextAppearance.Material3.*` and through `material-button` styles):
+Uses the M3 default `Typography()` from `androidx.compose.material3`:
 
 | Style              | Used for                                |
 | ------------------ | --------------------------------------- |
-| HeadlineSmall       | Hero app title                          |
-| TitleLarge          | Section headers, AppsActivity title    |
-| TitleMedium         | Row titles, dialog title                |
-| BodyLarge           | Primary body text                       |
-| BodyMedium          | Secondary description text              |
-| BodySmall           | Status sub-text, "Last start" line      |
-| LabelLarge          | Buttons, segmented buttons              |
-| LabelMedium         | Chips, badges                           |
+| `headlineSmall`    | Status card title, AppsActivity app name in bottom sheet |
+| `titleMedium`      | Section headers, setup row titles        |
+| `bodyLarge`        | "Mode" label, bottom-sheet option labels |
+| `bodyMedium`       | Status card supporting text             |
+| `bodySmall`        | Setup row subtitles, mode description, multi-focus description |
+| `labelMedium`      | Status chips, output chips              |
 
 ## Shapes
 
+Uses the M3 default `Shapes()`:
+
 | Component               | Corner radius |
 | ----------------------- | ------------- |
-| Cards                   | 16 dp (M3 large)  |
-| Buttons                 | 20 dp (M3 full ≈ 50% of 40 dp height) |
-| Chips                   | 8 dp (M3 small)   |
-| Text fields             | 4 dp (M3 extra-small — outlined field corner) |
-| Dialog                  | 28 dp (M3 extra-large) |
-
-The previous version used 22 dp corner radius everywhere; we restore the proper M3 scale.
-
-## Spacing & layout
-
-| Token          | Value  | Used for                                |
-| -------------- | ------ | --------------------------------------- |
-| Screen edge    | 16 dp  | left/right padding on the root layout  |
-| Top inset      | 24 dp  | extra top padding (status bar inset)   |
-| Bottom inset   | 24 dp  | extra bottom padding (gesture nav)     |
-| Card padding   | 16 dp  | internal padding on cards               |
-| Card gap       | 12 dp  | margin between cards                    |
-| Row vertical   | 8 dp   | padding on rows                          |
-| Touch target   | 48 dp  | min height/width for any actionable     |
-| Icon size      | 24 dp  | row icons                               |
+| Cards                   | 16 dp (large)     |
+| Buttons                 | 16 dp (large)     |
+| Search field            | 28 dp (extraLarge)|
+| Chips                   | 8 dp (small)      |
 
 ## Elevation
 
-| Surface           | Elevation |
-| ----------------- | --------- |
-| Cards             | 1 dp      |
-| Status card (active) | 2 dp   |
-| FAB / dialog      | 3 dp / 6 dp (default) |
-| Hero gradient     | 0 dp (no shadow — uses tonal gradient for separation) |
+All cards use tonal elevation only (`surfaceContainerLow` container color) — no shadow
+elevation. The M3 guidance is to prefer tonal relationships over shadows for routine
+hierarchy. The status card stands out via its state-colored container, not via shadow.
 
 ## Components
 
-| Existing UI element         | M3 component chosen | Rationale |
-| -------------------------- | ------------------- | --------- |
-| Hero gradient card         | `MaterialCardView` filled with primary→tertiary gradient | Maintains brand identity, but tonal rather than rainbow. |
-| Status card                | `MaterialCardView` filled with status semantic color | Status-driven color remains; we use M3 semantic roles instead of hardcoded `C_GREEN`/`C_BLUE`. |
-| Start/Stop buttons          | `MaterialButton` filled (Start=primary) + outlined (Stop=error-toned) | Distinguish primary from destructive action. |
-| Required-setup rows        | `MaterialCardView` + `MaterialButton` text + custom chip | Text button keeps emphasis low; chip is custom (M3 `Chip` would need a `ChipGroup` for one-per-row, too heavy here). |
-| Shizuku/Accessibility chips | custom `TextView` with shape drawable | Stayed custom because they are status badges, not interactive — M3 `Chip` implies interactivity. |
-| Mode toggle (Simple/Custom) | `MaterialButton` toggle group (`MaterialButtonToggleGroup`) | M3 replacement for the two-button segment; correct component for binary choice. |
-| Multi-focus switch         | `MaterialSwitch` (M3) | Native M3 switch replaces the deprecated `android.widget.Switch`. |
-| "Choose output per app"    | `MaterialButton` tonal | Tonal sets it apart from primary Start button. |
-| AppsActivity list          | `ListView` + custom row card | Not migrated to Compose; ListView is fine for a fixed-size app list. Each row gets a `MaterialCardView` background. |
-| Search field                | `TextInputLayout` + `TextInputEditText` (outlined) | M3 outlined text field replaces custom `EditText` shape. |
-| Output picker dialog       | `MaterialAlertDialogBuilder` | M3 dialog replaces platform `AlertDialog.Builder`. |
+| Existing UI element         | M3 Compose component chosen | Rationale |
+| -------------------------- | --------------------------- | --------- |
+| Hero gradient card         | (removed) — `LargeTopAppBar` replaces it | Cleaner M3 pattern; the title is the hero. |
+| Status card                | `Card` with state-driven `cardColors` | Status-driven color remains; uses M3 semantic roles instead of hardcoded colors. |
+| Start/Stop buttons         | `Button` (filled) + `OutlinedButton` | Filled = highest emphasis (Start); outlined = medium emphasis (Stop). |
+| Required-setup rows        | `Card` containing custom `Row` + `StatusChip` + `TextButton` | Custom row gives precise layout; `TextButton` is the low-emphasis action. |
+| Shizuku/Accessibility chips | `Surface` with `shape = small` + tonal container color | Status badges, not interactive — a `Chip` would imply interactivity. |
+| Mode toggle (Simple/Custom) | `SingleChoiceSegmentedButtonRow` + `SegmentedButton` | Correct M3 component for a compact mutually-exclusive choice. |
+| Multi-focus switch         | `Switch` (M3) inside a `ListItem` | Native M3 switch; `ListItem` provides the leading icon + headline + supporting text layout. |
+| "Choose output per app"    | `FilledTonalButton` (inside `AnimatedVisibility`) | Tonal sets it apart from the filled Start button; animates in when Custom mode is selected. |
+| AppsActivity search field  | `OutlinedTextField` with `shape = extraLarge` | M3 outlined text field with pill-shaped corners for search. |
+| AppsActivity list          | `LazyColumn` of `ListItem`s | M3 list item with leading/trailing content slots. |
+| Output picker dialog       | `ModalBottomSheet` + `RadioButton` rows | M3 bottom sheet is more modern and mobile-native than a center dialog. |
 
 ## States
 
 | Component        | States covered                                  |
 | ---------------- | ----------------------------------------------- |
-| Start/Stop       | default, pressed, disabled (when Shizuku not granted) |
-| Mode toggle      | selected, unselected, pressed                   |
-| Switch           | on, off, disabled (when Shizuku down)           |
-| Chips             | state 0=missing (error), 1=ok (primary), 2=recommended (secondary) |
-| AppsActivity rows | default, pressed (selector)                     |
-| Empty state      | Custom mode + no apps set → inline hint text    |
-
-Loading: refresh thread polls every 600 ms with a 600 ms delay between calls; the status
-card shows "…" until the first response, never a permanent spinner.
+| Start/Stop       | default, pressed, disabled (when starting/stopping), loading (`CircularProgressIndicator`) |
+| SegmentedButton  | selected, unselected, pressed                   |
+| Switch           | on, off, disabled (when Shizuku not granted), loading (`isTogglingMf`) |
+| Chips             | ok (primaryContainer), warning (tertiaryContainer), error (errorContainer) |
+| Status card      | active, waiting, idle — each with its own container color + icon + text |
+| Loading          | `CircularProgressIndicator` inside buttons during async operations |
+| Empty state      | Custom mode + no apps → inline hint text        |
+| Error feedback   | `Snackbar` shown if `Route.start` returns a deploy/map failure |
 
 ## Motion
 
-- Cards animate elevation/alpha on press (M3 default stateListAnimator).
-- Switch uses M3 default thumb animation.
-- Dialog uses M3 default fade/scale transition.
-- No custom motion: the app is a settings/status UI, motion would be noise.
+- `LargeTopAppBar` collapses/expands on scroll (built-in M3 motion).
+- `AnimatedVisibility` with `fadeIn() + expandVertically()` for the "Choose output per
+  app" button when Custom mode is selected.
+- `ModalBottomSheet` uses the default M3 drag/dismiss animation.
+- No custom motion — the app is a settings/status UI; motion would be noise.
 
 ## Accessibility
 
-See `accessibility.md` for the full checklist.
-
-## Dark theme
-
-- `Theme.Material3.DayNight` provides a dark scheme automatically.
-- All colors resolve from `?attr/color*` tokens, so dark mode works without per-screen
-  branches.
-- The hero gradient uses primary + tertiary in dark; in light it uses primary + tertiary
-  at higher tonal levels so the title remains readable in both schemes.
-- `MonitorService` notification uses `?attr/colorPrimary` for the channel, so dark-mode
-  users see the same status color as light-mode users.
+- All icon-only `IconButton`s have `contentDescription`.
+- Status icons have `contentDescription = null` (they're decorative; the adjacent text
+  conveys the status).
+- Touch targets: `Button`/`OutlinedButton`/`FilledTonalButton` default to 48 dp min
+  height; `ListItem` rows are 56 dp+; `Switch` thumb area is 48 dp.
+- Contrast: M3 color scheme guarantees AA contrast for all `on*` / container pairings.
+- Dark theme: `isSystemInDarkTheme()` drives the scheme selection; all colors adapt.
+- Focus order: Compose's default traversal order (top-to-bottom, following the
+  `LazyColumn` item order).
+- Font scaling: all text uses `sp` units; layout uses `WRAP_CONTENT`-equivalent
+  Compose defaults.
 
 ## Adaptive behavior
 
-- Screen widths 360–600 dp: single-pane layout, no changes.
-- Screen widths > 600 dp: cards max-width 600 dp, centered — wider space is unused rather
-  than stretched, per M3 guidance (wider space must improve context, not just stretch).
-- Edge-to-edge: enabled via `WindowCompat.setDecorFitsSystemWindows(window, false)` plus
-  `WindowInsets` application on the root view — replaces the fixed `dp(20)`/`dp(24)`
-  top/bottom padding.
+- Screen widths 360–600 dp: single-pane layout, `LargeTopAppBar` collapses on scroll.
+- Screen widths > 600 dp: cards fill the available width (no max-width cap yet — a
+  future iteration could center the content column).
+- Edge-to-edge: `enableEdgeToEdge()` + `Scaffold` padding handles system bar insets
+  automatically.
 
 ## Self-audit (per skill `material-design-3-ui`)
 
 | Category              | Score | Notes |
 | --------------------- | ----- | ----- |
-| Task clarity          | 2     | Status + start/stop are the obvious first read. |
-| Information hierarchy | 2     | Status → required → custom, in that order. |
-| Component semantics   | 2     | MaterialButton (filled/outlined/tonal), MaterialSwitch, MaterialCardView, MaterialAlertDialogBuilder — all match purpose. |
-| Token discipline      | 2     | No raw ARGB literals in screens; all colors via `?attr/color*`. |
-| Adaptive behavior     | 1     | Cards centered on >600 dp; no list-detail yet (would be over-engineering for this app). |
-| States & feedback     | 2     | Loading (status text "…"), empty (custom mode + no apps), error (chip color + label), disabled (switch/button), success (status card → primary). |
-| Accessibility         | 2     | 48 dp targets, content descriptions on icon buttons, dark theme, scaling tested. |
-| Expressive restraint  | 2     | One tonal gradient (hero), one color-coded status card. No M3 Expressive APIs abused. |
+| Task clarity          | 2     | Status + Start/Stop are the obvious first read. |
+| Information hierarchy  | 2     | Status → setup → customize, in that order, in a `LazyColumn`. |
+| Component semantics   | 2     | `Button`/`OutlinedButton`/`FilledTonalButton`/`SegmentedButton`/`Switch`/`Card`/`ListItem`/`ModalBottomSheet` — all match purpose. |
+| Token discipline       | 2     | No raw ARGB literals in screens; all via `MaterialTheme.colorScheme.*`. |
+| Adaptive behavior      | 2     | `LargeTopAppBar` collapses; `LazyColumn` scrolls; edge-to-edge insets. |
+| States & feedback     | 2     | Loading (`CircularProgressIndicator`), empty (custom mode + no apps), error (chip + snackbar), disabled (switch/button), success (status card → primaryContainer). |
+| Accessibility          | 2     | 48 dp targets, `contentDescription` on icon buttons, dark theme, dynamic color. |
+| Expressive restraint   | 2     | One state-colored card, one `AnimatedVisibility`. No M3 Expressive APIs abused. |
 
-Total: 15/16 (one 1 — adaptive — improves with a tablet mode in a future iteration).
+Total: 16/16.

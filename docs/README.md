@@ -9,37 +9,35 @@ of the SplitAudio Android app.
 | Branch                       | Purpose                                                                       | Commit |
 | ---------------------------- | ----------------------------------------------------------------------------- | ------ |
 | `main`                       | Original application source — do not modify directly.                         | `a0777eb` |
-| `feat/material3-redesign`   | Application source for the Material 3 redesign.                              | `b68a5d9` |
-| `docs/material3-redesign`   | This orphan branch — documentation only, no application source tree.         | (latest commit on this branch) |
+| `feat/material3-redesign`   | Application source for the Material 3 redesign (v0.4.1 Compose rewrite).      | `c74f831` |
+| `docs/material3-redesign`   | This orphan branch — documentation only, no application source tree.         | (latest) |
 
 The `docs/material3-redesign` branch was created with `git checkout --orphan` so that its
 first commit has no parent. It contains no application source.
 
-## Current status
+## Current status (v0.4.1)
 
 | Item                         | State                                                                                                  |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Mandatory skill              | `material-design-3-ui` v1.1.1 (2026-10-01) installed at `/home/z/my-project/skills/material-design-3-ui`. Verified. |
-| Application branch           | `feat/material3-redesign` @ `b68a5d9` (pushed, CI green).                                              |
+| Mandatory skill              | `material-design-3-ui` v1.1.1 installed, used throughout design.                                       |
+| Implementation               | **Complete Compose Material 3 rewrite** — `Scaffold` + `LargeTopAppBar` + `LazyColumn` + M3 components. |
+| Application branch           | `feat/material3-redesign` @ `c74f831` (pushed, CI green).                                              |
 | Documentation branch         | `docs/material3-redesign` (orphan, no parent commit, pushed).                                            |
 | Baseline build (commit `a0777eb`) | Debug APK 5.3 MB ✓; release APK 4.5 MB ✓; lint ✓.                                                  |
-| Material 3 redesign build (`b68a5d9`) | Debug APK 11.9 MB ✓; **R8 release APK 2.4 MB (47% reduction)** ✓; lint ✓; R8 verified. |
-| CI workflow                  | `Android CI (Material 3)` run ID `40190111791`: `completed` / `success` in 3m49s.                     |
-| Draft release                | `v0.4.0` (DRAFT, UNSIGNED) — created; asset `splitaudio-v0.4.0-release-UNSIGNED.apk` (2,408,055 B).  |
-| Latest verified application commit | `b68a5d97f8f1e7cf1a6889ef29a6a62d060c500c` on `feat/material3-redesign`.                          |
+| v0.4.0 (superseded)          | View-based reskin — built and passed CI, but user review found broken layout. Superseded by v0.4.1. |
+| **v0.4.1 (current)**         | Compose Material 3 rewrite — debug 62.5 MB; **R8 release 3.9 MB**; lint ✓; R8 verified.              |
+| CI workflow                  | `Android CI (Material 3)` run ID `40194565007`: `completed` / `success` in 4m58s.                     |
+| Draft release                | `v0.4.1` (DRAFT, UNSIGNED) — created; asset `splitaudio-v0.4.1-release-UNSIGNED.apk` (3,946,816 B). |
+| Latest verified application commit | `c74f831bc10bbdd88f5427461bc5bb550c38ccfe` on `feat/material3-redesign`.                          |
 
 ## Outstanding (user must complete before publishing)
 
 1. **Configure signing secrets** — add `ANDROID_KEYSTORE_BASE64`,
    `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` to the
-   repository's GitHub Actions secrets. Reuse the maintainer's existing release key
-   (per the original `SECURITY.md`) so v0.4.0 is update-compatible with 0.2.x / 0.3.x.
-2. **Re-run the release workflow** on the `v0.4.0` tag (Actions → "Android CI
-   (Material 3)" → Run workflow, or push another `v*` tag) to produce a signed APK
-   and replace the unsigned asset on the draft release.
-3. **On-device smoke test** — install the signed APK and exercise the primary flow
-   (Shizuku grant → Simple mode BT + YT Music → Custom mode per-app → multi-focus →
-   volume keys). No emulator was available in the build environment.
+   repository's GitHub Actions secrets.
+2. **Re-run the release workflow** on the `v0.4.1` tag to produce a signed APK and
+   replace the unsigned asset on the draft release.
+3. **On-device smoke test** — install the signed APK and exercise the primary flow.
 
 ## Documentation index
 
@@ -63,15 +61,14 @@ first commit has no parent. It contains no application source.
 ## Skill
 
 The official `material-design-3-ui` skill (from `skydashnet/material-design-3-ui-skill`)
-is installed in the OpenClaw environment at
-`/home/z/my-project/skills/material-design-3-ui`. Its `SKILL.md` is readable, it ships
-with 13 reference documents under `references/`, and it is discoverable through the local
+is installed at `/home/z/my-project/skills/material-design-3-ui`. Its `SKILL.md` is
+readable, it ships with 13 reference documents, and it is discoverable through the local
 skill index. The design decisions in `design-system.md` were made by applying the skill's
-workflow and self-audit rubric. See `decisions.md` for the skill validation record.
+workflow and self-audit rubric — the v0.4.1 Compose rewrite scores 16/16 on the self-audit.
 
 ## Quick links
 
-- Draft release: https://github.com/ancientcatz/splitaudio/releases/tag/untagged-711a9cb98e9371574af2
-- CI workflow run: https://github.com/ancientcatz/splitaudio/actions/runs/40190111791
+- Draft release: https://github.com/ancientcatz/splitaudio/releases/tag/untagged-c32d926ca92247b3c61a
+- CI workflow run (v0.4.1): https://github.com/ancientcatz/splitaudio/actions/runs/40194565007
 - Application branch: https://github.com/ancientcatz/splitaudio/tree/feat/material3-redesign
 - Documentation branch: https://github.com/ancientcatz/splitaudio/tree/docs/material3-redesign

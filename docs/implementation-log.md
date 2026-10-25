@@ -2,71 +2,65 @@
 
 (Reverse chronological — most recent first.)
 
-## 2026-10-25 — Stage F: CI green + draft release created
+## 2026-10-25 — v0.4.1: Complete Compose Material 3 rewrite
 
-- Pushed `feat/material3-redesign` (commit `b68a5d9`) to remote.
-- CI workflow `Android CI (Material 3)` triggered automatically.
-- Run ID `40190111791`: `completed` / `success` in 3m49s.
-  - Build job: ✓ green. Builds approute.dex + debug APK + R8 release APK + lint +
-    R8 verification + APK metadata sanity check. Uploads 4 artifacts (debug APK,
-    release APK, R8 reports, lint report).
-  - Release job: skipped (trigger was a push, not a tag — expected).
-- Created draft GitHub release `v0.4.0` on tag pointing at commit `b68a5d9`:
-  - URL: https://github.com/ancientcatz/splitaudio/releases/tag/untagged-711a9cb98e9371574af2
-  - Title: "SplitAudio v0.4.0 (Material 3 redesign — DRAFT, UNSIGNED)"
-  - Asset: `splitaudio-v0.4.0-release-UNSIGNED.apk` (2,408,055 bytes)
-  - MD5 of asset matches local build: `b3444b8b9f805153d14cf105e80e5a5b` ✓
-  - `isDraft=true`, `tagName=v0.4.0`, `targetCommitish=b68a5d9...` ✓
-- Verified the release APK's contents:
-  - `classes.dex` (1,228,076 B) contains `Lrikka/shizuku/Shizuku;`,
-    `Lrikka/shizuku/ShizukuProvider;`, and the strings `state` and `mode` (the
-    AppRoute socket-protocol commands).
-  - `assets/approute.dex` (17,148 B) MD5 matches source: `ec80121c2275f8c1b43d475b346b743c`.
-  - `assets/approute.sh` (2,657 B) preserved.
-  - `Theme.Material3.*` styles + `isMaterial3Theme` attr packaged.
-  - All manifest components preserved (MainActivity, AppsActivity, MonitorService,
-    VolKeyService, BootReceiver, ShizukuProvider, InitializationProvider).
-- Outstanding: signing secrets (4 × `ANDROID_KEYSTORE_*`) — user must configure
-  these and re-run the workflow on the `v0.4.0` tag to produce a signed APK and
-  replace the unsigned asset on the draft release.
+The user reviewed the v0.4.0 implementation and found it was a superficial reskin
+of programmatic Views, not a real Material 3 redesign — the screenshot showed
+broken layout (text overlap, malformed cards). This is a **complete ground-up
+rewrite** using Jetpack Compose + `androidx.compose.material3`.
 
-## 2026-10-25 — Stage A-E: Material 3 redesign + R8 + local build
+### Changes
 
-- Stage A (Foundations):
-  - Added `com.google.android.material:material:1.12.0` + `androidx.appcompat:appcompat:1.7.0`.
-  - Created `Theme.SplitAudio` (parent `Theme.Material3.DayNight.NoActionBar`),
-    edge-to-edge, transparent system bars, dynamic color on Android 12+.
-  - Created `res/values{,-night}/colors.xml` with M3 baseline light/dark
-    palettes (purple seed).
-  - Created `M3.kt` — resolves `?attr/color*` M3 roles to ARGB Ints.
-  - Updated `AndroidManifest.xml` `<application android:theme="@style/Theme.SplitAudio">`.
-- Stage B (Primary screen — MainActivity):
-  - Migrated from `Activity` to `AppCompatActivity`.
-  - `MaterialCardView` for all cards (hero, status, required-setup, customize).
-  - `MaterialButton` filled (Start) + outlined error-toned (Stop).
-  - `MaterialButtonToggleGroup` (single-selection) for Simple/Custom mode.
-  - `MaterialSwitch` for multi-focus toggle.
-  - All colors via `M3.*` (no hardcoded ARGB literals).
-  - Edge-to-edge via `WindowCompat` + `WindowInsetsCompat`.
-  - Status-bar icon tint follows surface darkness.
-- Stage C (Secondary screen — AppsActivity):
-  - `AppCompatActivity`; `TextInputLayout` + `TextInputEditText` (M3 outlined).
-  - `MaterialCardView` list rows with `outlineVariant` border + `surfaceContainer`
-    background.
-  - `MaterialAlertDialogBuilder` for output picker (replaces platform
-    `AlertDialog.Builder`).
-- Stage D (Integration):
-  - Edge-to-edge window insets applied.
-  - Light/dark theme switching via `Theme.Material3.DayNight`.
-  - Status-bar / nav-bar icon tints follow surface darkness.
-- Stage E (R8 + regression testing):
-  - Enabled `isMinifyEnabled=true`, `isShrinkResources=true`,
-    `android.enableR8.fullMode=true`.
-  - Wrote `app/proguard-rules.pro` with `-keep` for `rikka.shizuku.Shizuku` +
-    `rikka.shizuku.aidl.**` (Shz.kt reflects on hidden `newProcess` method).
-  - Local build: debug APK 11.9 MB; release APK (R8) 2.4 MB.
-  - R8 mapping (10 MB) confirms obfuscation. Shizuku class + Shz.newProcess method
-    kept. All manifest components preserved.
+- **Build config**: added Compose BOM 2024.09.03, `material3`, `material-icons-extended`,
+  `activity-compose:1.9.3`, `lifecycle-runtime-compose:2.8.6`. Enabled
+  `buildFeatures.compose = true` + `composeOptions.kotlinCompilerExtensionVersion = "1.5.14"`
+  (matches Kotlin 1.9.24). Removed `appcompat` (not needed with `ComponentActivity`).
+  Bumped version to `versionCode=8`, `versionName=0.4.1`.
+- **Theme.kt** (new): `SplitAudioTheme` composable — `MaterialTheme(colorScheme = …)`.
+  Dynamic color on Android 12+ (`dynamicLightColorScheme` / `dynamicDarkColorScheme`);
+  seeded M3 baseline purple palette on Android 11- (light + dark). Includes all M3
+  surface container roles (`surfaceContainerLowest` through `surfaceContainerHighest`).
+- **MainActivity.kt** (rewritten): `ComponentActivity` + `setContent`. Uses
+  `Scaffold` + `LargeTopAppBar` (collapsible) + `LazyColumn`. Three cards:
+  `StatusCard` (state-colored, `Button` + `OutlinedButton`), `SetupSection`
+  (two rows with `StatusChip` + `TextButton`), `CustomizeSection`
+  (`SingleChoiceSegmentedButtonRow` + `AnimatedVisibility` `FilledTonalButton` +
+  `ListItem` with `Switch`). 2-second `LaunchedEffect` polling for live status.
+  `SnackbarHost` for error feedback. All colors via `MaterialTheme.colorScheme.*`.
+- **AppsActivity.kt** (rewritten): `ComponentActivity` + `setContent`. Uses
+  `Scaffold` + `TopAppBar` (back button) + `OutlinedTextField` (search,
+  `extraLarge` shape) + `LazyColumn` of `ListItem`s. `ModalBottomSheet` for output
+  picker with `RadioButton` rows. `DisposableEffect` + `LifecycleEventObserver`
+  to flush changes on pause (preserves original `onPause → Route.apply` behavior).
+- **M3.kt** (deleted): no longer needed — Compose handles all color resolution.
+- **strings.xml** (en + zh-rTW): cleaned up section headers (removed ① ② markers),
+  shortened button labels (Start/Stop), removed ✓ glyphs from status texts (M3 uses
+  color + component semantics, not glyphs).
+
+### Verification
+
+- Debug APK builds: 62.5 MB (includes Compose tooling).
+- R8 release APK builds: 3.9 MB.
+- R8 mapping (29.8 MB) confirms obfuscation.
+- `rikka.shizuku.Shizuku` class + `Shz.newProcess` method kept (proguard rule worked).
+- All manifest components preserved.
+- `approute.dex` + `approute.sh` preserved as release APK assets.
+- Compose classes present in release dex (122 compose-related strings).
+- CI run `40194565007`: `completed` / `success` in 4m58s.
+- Draft release `v0.4.1` created with the unsigned APK asset (3,946,816 bytes).
+
+### Outstanding
+
+- Signing secrets still not configured (same as v0.4.0).
+- On-device runtime verification still not possible (no emulator/device).
+
+## 2026-10-25 — v0.4.0 (superseded): View-based Material 3 reskin
+
+This was the first attempt — a View-based reskin using MaterialButton, MaterialCardView,
+MaterialSwitch, MaterialButtonToggleGroup, TextInputLayout, MaterialAlertDialogBuilder.
+It built and passed CI, but the user reviewed the screenshot and found the layout was
+broken (text overlap, malformed cards). The implementation was a superficial reskin,
+not a real M3 redesign. Superseded by v0.4.1.
 
 ## 2026-10-25 — Stage 0: Baseline + skill verification
 
