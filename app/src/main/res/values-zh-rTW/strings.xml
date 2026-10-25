@@ -18,8 +18,8 @@
     <string name="s_custom_wait">待命（路由在跑，等有設定的 App 播放）</string>
     <string name="btn_shizuku">① Shizuku 授權</string>
     <string name="btn_acc">② 開啟無障礙（音量鍵調手機喇叭）</string>
-    <string name="btn_start">立即啟動分流</string>
-    <string name="btn_stop">停止分流</string>
+    <string name="btn_start">啟動</string>
+    <string name="btn_stop">停止</string>
     <string name="btn_mf">開／關：開影片不打斷音樂</string>
     <string name="btn_refresh">重新整理</string>
     <string name="mf_result">影片不打斷音樂 → %1$s</string>
@@ -29,11 +29,11 @@
     <string name="st_mf">開影片不打斷音樂：%1$s</string>
     <string name="st_last">上次啟動：%1$s</string>
     <string name="v_not_running">沒在跑</string>
-    <string name="v_granted">已授權 ✓</string>
+    <string name="v_granted">已授權</string>
     <string name="v_not_granted">未授權</string>
-    <string name="v_on">已開 ✓</string>
+    <string name="v_on">已開</string>
     <string name="v_off">未開</string>
-    <string name="split_on">分流中 ✓</string>
+    <string name="split_on">分流中</string>
     <string name="split_waiting">路由在跑，等音樂播放</string>
     <string name="split_none">沒在跑（藍牙＋音樂播放時自動啟動）</string>
     <string name="mf_off_auto">未開（第一次分流時自動打開）</string>
@@ -49,8 +49,8 @@
     <string name="notif_title">SplitAudio：%1$s</string>
     <string name="toast_vol">手機喇叭音量 %1$s%%</string>
     <string name="hero_sub">音樂留在藍牙，其他 App 走手機喇叭；也可以每個 App 自己選。</string>
-    <string name="sec_required">① 必要設定</string>
-    <string name="sec_custom">② 客製化</string>
+    <string name="sec_required">必要設定</string>
+    <string name="sec_custom">客製化</string>
     <string name="row_shizuku">Shizuku</string>
     <string name="row_shizuku_d">讓分流能設定系統聲音路線（不用 root）。</string>
     <string name="row_acc">音量鍵</string>

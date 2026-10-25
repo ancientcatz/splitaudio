@@ -1,309 +1,641 @@
 package app.splitaudio
 
 import android.content.Intent
-import android.graphics.Color
-import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.view.Gravity
-import android.view.View
-import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.button.MaterialButtonToggleGroup
-import com.google.android.material.card.MaterialCardView
-import com.google.android.material.materialswitch.MaterialSwitch
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.MusicVideo
+import androidx.compose.material.icons.filled.Pending
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.outlined.Bluetooth
+import androidx.compose.material.icons.outlined.MusicVideo
+import androidx.compose.material.icons.outlined.VolumeUp
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-/**
- * Status + settings screen — Material 3 redesign.
- *
- * Structure is identical to the original (hero → status → required setup → customize)
- * but every color resolves from the M3 theme via [M3], every interactive control is a
- * Material 3 component (MaterialButton, MaterialCardView, MaterialSwitch,
- * MaterialButtonToggleGroup), the theme is `Theme.SplitAudio` (parent
- * `Theme.Material3.DayNight`), and the layout respects edge-to-edge window insets.
- *
- * Business logic (Shizuku permission, Route.start/stop, Outputs persistence,
- * MonitorService.ensure, refreshSoon polling) is unchanged.
- */
-class MainActivity : AppCompatActivity() {
-    private lateinit var liveCard: MaterialCardView
-    private lateinit var tvLive: TextView
-    private lateinit var tvLiveSub: TextView
-    private lateinit var tvLast: TextView
-    private lateinit var shzChip: TextView
-    private lateinit var shzBtn: MaterialButton
-    private lateinit var accChip: TextView
-    private lateinit var accBtn: MaterialButton
-    private lateinit var segSimple: MaterialButton
-    private lateinit var segCustom: MaterialButton
-    private lateinit var appsBtn: MaterialButton
-    private lateinit var mfSw: MaterialSwitch
-    private lateinit var tvMf: TextView
-    private lateinit var tvModeDesc: TextView
-    @Volatile private var mf: String? = null
-    private var mfBusy = false
-
-    override fun onCreate(b: Bundle?) {
-        super.onCreate(b)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this)
-        val surfaceDark = M3.isColorDark(M3.surface(this))
-        WindowCompat.getInsetsController(window, window.decorView).apply {
-            isAppearanceLightStatusBars = !surfaceDark
-            isAppearanceLightNavigationBars = !surfaceDark
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= 33) {
+            requestPermissions(arrayOf("android.permission.POST_NOTIFICATIONS"), 1)
         }
-
-        if (Build.VERSION.SDK_INT >= 33) requestPermissions(arrayOf("android.permission.POST_NOTIFICATIONS"), 1)
         MonitorService.ensure(this)
-
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(8), dp(16), dp(8))
-            clipToPadding = false
-        }
-
-        // Hero — tonal primary → tertiary gradient (brand-coded, not rainbow).
-        val hero = card(22, 0)
-        hero.background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(M3.primary(this), M3.tertiary(this))).apply { cornerRadius = dp(22).toFloat() }
-        hero.addView(text("🎧 " + getString(R.string.app_name), 26f, M3.onPrimary(this), true))
-        hero.addView(text(getString(R.string.hero_sub), 14f, M3.onPrimary(this)).apply { setPadding(0, dp(6), 0, 0) })
-        root.addView(hero)
-
-        // Status card — color follows state.
-        liveCard = card(16, 2)
-        liveCard.setCardBackgroundColor(M3.surfaceVariant(this))
-        tvLive = text("…", 20f, M3.onSurface(this), true)
-        tvLiveSub = text("", 13f, M3.onSurface(this)).apply { setPadding(0, dp(4), 0, dp(6)) }
-        liveCard.addView(tvLive); liveCard.addView(tvLiveSub)
-        val btnRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        btnRow.addView(btn(getString(R.string.btn_start), BTN_FILLED, M3.primary(this), M3.onPrimary(this), 1f) { Thread { Route.start(this@MainActivity) }.start() })
-        btnRow.addView(btn(getString(R.string.btn_stop), BTN_OUTLINED, M3.error(this), M3.onError(this), 1f) { Thread { Route.stop() }.start() })
-        liveCard.addView(btnRow)
-        tvLast = text("", 11f, M3.onSurfaceVariant(this)).apply { setPadding(dp(4), dp(2), 0, 0) }
-        liveCard.addView(tvLast)
-        root.addView(liveCard)
-
-        // ① Required setup card.
-        val req = card(16, 1)
-        req.setCardBackgroundColor(M3.surfaceContainer(this))
-        req.addView(section(getString(R.string.sec_required), M3.primary(this)))
-        shzChip = chip()
-        shzBtn = btn(getString(R.string.btn_grant), BTN_TEXT, M3.primary(this), M3.onPrimary(this), 0f) { Shz.request() }
-        req.addView(row("🔑", getString(R.string.row_shizuku), getString(R.string.row_shizuku_d), shzChip, shzBtn))
-        req.addView(divider())
-        accChip = chip()
-        accBtn = btn(getString(R.string.btn_open), BTN_TEXT, M3.primary(this), M3.onPrimary(this), 0f) { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-        req.addView(row("🔊", getString(R.string.row_acc), getString(R.string.row_acc_d), accChip, accBtn))
-        root.addView(req)
-
-        // ② Customize card.
-        val cus = card(16, 1)
-        cus.setCardBackgroundColor(M3.surfaceContainer(this))
-        cus.addView(section(getString(R.string.sec_custom), M3.tertiary(this)))
-        cus.addView(text(getString(R.string.mode_title), 15f, M3.onSurface(this), true))
-        val toggle = MaterialButtonToggleGroup(this).apply {
-            setSingleSelection(true)
-            setSelectionRequired(true)
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        }
-        segSimple = btn(getString(R.string.mode_simple), BTN_OUTLINED, M3.primary(this), M3.onPrimary(this), 0f) { setMode(false) }
-        segCustom = btn(getString(R.string.mode_custom), BTN_OUTLINED, M3.tertiary(this), M3.onTertiary(this), 0f) { setMode(true) }
-        toggle.addView(segSimple, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        toggle.addView(segCustom, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        cus.addView(toggle)
-        tvModeDesc = text("", 13f, M3.onSurfaceVariant(this)).apply { setPadding(dp(4), dp(8), dp(4), dp(4)) }
-        cus.addView(tvModeDesc)
-        appsBtn = btn("🎛️ " + getString(R.string.btn_apps), BTN_FILLED, M3.secondaryContainer(this), M3.onSecondaryContainer(this), 0f) { startActivity(Intent(this, AppsActivity::class.java)) }
-        cus.addView(appsBtn)
-        cus.addView(divider())
-        mfSw = MaterialSwitch(this).apply {
-            text = "🎬 " + getString(R.string.mf_title); textSize = 15f; setTextColor(M3.onSurface(this@MainActivity)); setTypeface(typeface, Typeface.BOLD)
-            setPadding(0, dp(6), 0, dp(2))
-            setOnCheckedChangeListener { _, on ->
-                if (mfBusy || on == (mf == "on")) return@setOnCheckedChangeListener
-                Thread { Route.lastStart = getString(R.string.mf_result, Route.setMultiFocus(this@MainActivity, on)); refreshSoon() }.start()
+        enableEdgeToEdge()
+        setContent {
+            SplitAudioTheme {
+                HomeScreen()
             }
         }
-        cus.addView(mfSw)
-        tvMf = text("", 13f, M3.onSurfaceVariant(this)).apply { setPadding(0, 0, 0, dp(4)) }
-        cus.addView(tvMf)
-        root.addView(cus)
+    }
+}
 
-        // Edge-to-edge insets.
-        ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
-            val sys = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
-            v.setPadding(dp(16), dp(8) + sys.top, dp(16), dp(8) + sys.bottom)
-            insets
+// ──────────────────────────────────────────────────────────────────────────────
+// Home screen
+// ──────────────────────────────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreen() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+    // Reactive state
+    var routeStatus by remember { mutableStateOf<String?>(null) }
+    var shizukuAlive by remember { mutableStateOf(false) }
+    var shizukuGranted by remember { mutableStateOf(false) }
+    var accEnabled by remember { mutableStateOf(false) }
+    var customMode by remember { mutableStateOf(Outputs.customFlag(context)) }
+    var customAppCount by remember { mutableStateOf(Outputs.all(context).size) }
+    var multiFocus by remember { mutableStateOf<String?>(null) }
+    var lastStart by remember { mutableStateOf(Route.lastStart) }
+    var isStarting by remember { mutableStateOf(false) }
+    var isStopping by remember { mutableStateOf(false) }
+    var isSwitchingMode by remember { mutableStateOf(false) }
+    var isTogglingMf by remember { mutableStateOf(false) }
+
+    suspend fun refresh() = withContext(Dispatchers.IO) {
+        val acc = (Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: "")
+            .contains("${context.packageName}/")
+        val s = Route.ask("state")
+        val alive = Shz.alive()
+        val granted = Shz.granted()
+        val mf = if (granted) Route.multiFocusState() else null
+        val custom = Outputs.customFlag(context)
+        val nApps = Outputs.all(context).size
+        withContext(Dispatchers.Main) {
+            routeStatus = s
+            shizukuAlive = alive
+            shizukuGranted = granted
+            accEnabled = acc
+            customMode = custom
+            customAppCount = nApps
+            multiFocus = mf
+            lastStart = Route.lastStart
         }
-
-        setContentView(ScrollView(this).apply {
-            background = null
-            addView(root)
-        })
     }
 
-    override fun onResume() { super.onResume(); refreshSoon() }
-
-    private fun setMode(custom: Boolean) {
-        if (custom == Outputs.customFlag(this)) return
-        Outputs.setCustom(this, custom); val c = applicationContext
-        Thread { Route.apply(c) }.start()
-        if (custom && !Outputs.hasAny(this)) startActivity(Intent(this, AppsActivity::class.java))
-        refreshSoon()
+    // Initial refresh + 2 s polling for live status updates
+    LaunchedEffect(Unit) {
+        refresh()
+        while (isActive) {
+            delay(2000)
+            refresh()
+        }
     }
 
-    private fun refreshSoon() {
-        Thread {
-            Thread.sleep(600)
-            val acc = (Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: "").contains("$packageName/")
-            val s = Route.ask("state")
-            val alive = Shz.alive(); val granted = Shz.granted()
-            mf = if (granted) Route.multiFocusState() else null
-            val custom = Outputs.customFlag(this); val nApps = Outputs.all(this).size
-            runOnUiThread {
-                val (live, onColor) = when (s) {
-                    "on" -> Pair("🟢 " + getString(R.string.live_on), M3.onPrimary(this@MainActivity))
-                    "off" -> Pair("🔵 " + getString(R.string.live_wait), M3.onSecondary(this@MainActivity))
-                    else -> Pair("⚪ " + getString(R.string.live_none), M3.onSurfaceVariant(this@MainActivity))
+    Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = {
+            LargeTopAppBar(
+                title = { Text(stringResource(R.string.app_name), fontWeight = FontWeight.SemiBold) },
+                scrollBehavior = scrollBehavior,
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item {
+                StatusCard(
+                    status = routeStatus,
+                    lastStart = lastStart,
+                    customMode = customMode,
+                    customAppCount = customAppCount,
+                    isStarting = isStarting,
+                    isStopping = isStopping,
+                    onStart = {
+                        scope.launch {
+                            isStarting = true
+                            val r = withContext(Dispatchers.IO) { Route.start(context) }
+                            isStarting = false
+                            refresh()
+                            if (r.startsWith("deploy_fail") || r.startsWith("map_fail")) {
+                                snackbarHostState.showSnackbar("Failed to start: $r")
+                            }
+                        }
+                    },
+                    onStop = {
+                        scope.launch {
+                            isStopping = true
+                            withContext(Dispatchers.IO) { Route.stop() }
+                            isStopping = false
+                            refresh()
+                        }
+                    },
+                )
+            }
+
+            item {
+                SetupSection(
+                    shizukuGranted = shizukuGranted,
+                    shizukuAlive = shizukuAlive,
+                    accEnabled = accEnabled,
+                    onGrantShizuku = { Shz.request() },
+                    onOpenAccessibility = {
+                        context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                    },
+                )
+            }
+
+            item {
+                CustomizeSection(
+                    customMode = customMode,
+                    customAppCount = customAppCount,
+                    multiFocus = multiFocus,
+                    shizukuGranted = shizukuGranted,
+                    isSwitchingMode = isSwitchingMode,
+                    isTogglingMf = isTogglingMf,
+                    onModeChange = { custom ->
+                        if (custom == Outputs.customFlag(context)) return@CustomizeSection
+                        Outputs.setCustom(context, custom)
+                        scope.launch {
+                            isSwitchingMode = true
+                            withContext(Dispatchers.IO) { Route.apply(context.applicationContext) }
+                            isSwitchingMode = false
+                            refresh()
+                        }
+                        if (custom && !Outputs.hasAny(context)) {
+                            context.startActivity(Intent(context, AppsActivity::class.java))
+                        }
+                    },
+                    onOpenApps = {
+                        context.startActivity(Intent(context, AppsActivity::class.java))
+                    },
+                    onMultiFocusChange = { on ->
+                        scope.launch {
+                            isTogglingMf = true
+                            withContext(Dispatchers.IO) {
+                                Route.lastStart = context.getString(R.string.mf_result, Route.setMultiFocus(context, on))
+                            }
+                            isTogglingMf = false
+                            refresh()
+                        }
+                    },
+                )
+            }
+        }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Status card — prominent, state-colored
+// ──────────────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun StatusCard(
+    status: String?,
+    lastStart: String,
+    customMode: Boolean,
+    customAppCount: Int,
+    isStarting: Boolean,
+    isStopping: Boolean,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+) {
+    val data = when (status) {
+        "on" -> StatusVisuals(
+            text = stringResource(R.string.live_on),
+            icon = Icons.Filled.GraphicEq,
+            container = MaterialTheme.colorScheme.primaryContainer,
+            onContainer = MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+        "off" -> StatusVisuals(
+            text = stringResource(R.string.live_wait),
+            icon = Icons.Filled.Pending,
+            container = MaterialTheme.colorScheme.secondaryContainer,
+            onContainer = MaterialTheme.colorScheme.onSecondaryContainer,
+        )
+        else -> StatusVisuals(
+            text = stringResource(R.string.live_none),
+            icon = Icons.Filled.RadioButtonUnchecked,
+            container = MaterialTheme.colorScheme.surfaceVariant,
+            onContainer = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = data.container,
+            contentColor = data.onContainer,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(24.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = data.icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                )
+                Spacer(Modifier.width(16.dp))
+                Text(
+                    text = data.text,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = if (customMode && customAppCount > 0)
+                    stringResource(R.string.st_mode_custom, customAppCount)
+                else
+                    stringResource(R.string.st_mode_simple),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            if (lastStart.isNotBlank() && lastStart != "none") {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = stringResource(R.string.st_last, lastStart),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = data.onContainer.copy(alpha = 0.7f),
+                )
+            }
+            Spacer(Modifier.height(20.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Button(
+                    onClick = onStart,
+                    modifier = Modifier.weight(1f),
+                    enabled = !isStarting && !isStopping,
+                    shape = MaterialTheme.shapes.large,
+                ) {
+                    if (isStarting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Text(stringResource(R.string.btn_start))
                 }
-                tvLive.text = live
-                tvLive.setTextColor(onColor)
-                tvLiveSub.setTextColor(onColor)
-                liveCard.setCardBackgroundColor(M3.statusColor(this@MainActivity, s))
-                tvLiveSub.text = if (custom && nApps > 0) getString(R.string.st_mode_custom, nApps) else getString(R.string.st_mode_simple)
-                tvLast.text = getString(R.string.st_last, Route.lastStart)
-
-                setChip(shzChip, if (granted) 1 else 0, getString(if (!alive) R.string.v_not_running else if (granted) R.string.v_granted else R.string.v_not_granted))
-                shzBtn.visibility = if (granted) View.GONE else View.VISIBLE
-                setChip(accChip, if (acc) 1 else 2, getString(if (acc) R.string.v_on else R.string.chip_recommended))
-                accBtn.visibility = if (acc) View.GONE else View.VISIBLE
-
-                segPaint(segSimple, !custom, M3.primary(this@MainActivity), M3.onPrimary(this@MainActivity))
-                segPaint(segCustom, custom, M3.tertiary(this@MainActivity), M3.onTertiary(this@MainActivity))
-                tvModeDesc.text = getString(if (custom && nApps == 0) R.string.mode_custom_empty else if (custom) R.string.mode_custom_d else R.string.mode_simple_d)
-                appsBtn.visibility = if (custom) View.VISIBLE else View.GONE
-
-                mfBusy = true; mfSw.isChecked = mf == "on"; mfSw.isEnabled = granted; mfBusy = false
-                tvMf.text = when (mf) { "on" -> getString(R.string.mf_desc); "off" -> getString(R.string.mf_off_auto); "off_user" -> getString(R.string.mf_off_user); else -> getString(R.string.mf_desc) }
-            }
-        }.start()
-    }
-
-    // ---- UI helpers ----
-    private fun card(cornerRadius: Int, elevation: Int): MaterialCardView = MaterialCardView(this).apply {
-        radius = dp(cornerRadius).toFloat()
-        cardElevation = dp(elevation).toFloat()
-        strokeWidth = 0
-        setContentPadding(dp(18), dp(16), dp(18), dp(16))
-        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(14) }
-    }
-
-    private fun text(t: String, size: Float, color: Int, bold: Boolean = false): TextView = TextView(this).apply {
-        text = t; textSize = size; setTextColor(color); if (bold) setTypeface(typeface, Typeface.BOLD)
-    }
-
-    private fun section(t: String, color: Int): TextView = text(t, 19f, color, true).apply { setPadding(0, 0, 0, dp(10)) }
-
-    private fun divider() = View(this).apply {
-        setBackgroundColor(M3.outlineVariant(this@MainActivity))
-        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply { setMargins(0, dp(10), 0, dp(10)) }
-    }
-
-    private fun row(icon: String, title: String, desc: String, chip: TextView, action: MaterialButton): LinearLayout = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        addView(LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-            addView(text(icon, 24f, M3.onSurface(this@MainActivity)), LinearLayout.LayoutParams(dp(40), LinearLayout.LayoutParams.WRAP_CONTENT))
-            addView(LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.VERTICAL
-                addView(text(title, 16f, M3.onSurface(this@MainActivity), true))
-                addView(text(desc, 12f, M3.onSurfaceVariant(this@MainActivity)))
-            }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            addView(chip)
-        })
-        addView(action)
-    }
-
-    private fun chip(): TextView = text("", 12f, Color.WHITE, true).apply {
-        setPadding(dp(12), dp(6), dp(12), dp(6))
-        background = GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(M3.surfaceVariant(this@MainActivity)) }
-    }
-
-    /** level: 1=ok(primary), 0=missing(error), 2=recommended(secondary) */
-    private fun setChip(c: TextView, level: Int, t: String) {
-        c.text = t
-        val bg = M3.chipColor(this, level)
-        (c.background as GradientDrawable).setColor(bg)
-        c.setTextColor(when (level) { 0 -> M3.onError(this); 1 -> M3.onPrimary(this); else -> M3.onSecondary(this) })
-    }
-
-    private fun segPaint(b: MaterialButton, on: Boolean, color: Int, onColor: Int) {
-        if (on) {
-            b.setBackgroundColor(color)
-            b.setTextColor(onColor)
-        } else {
-            b.setBackgroundColor(M3.surface(this))
-            b.setTextColor(color)
-        }
-    }
-
-    private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
-
-    companion object {
-        const val BTN_FILLED = 0
-        const val BTN_OUTLINED = 1
-        const val BTN_TEXT = 2
-    }
-
-    /**
-     * MaterialButton factory.
-     * @param style one of [BTN_FILLED], [BTN_OUTLINED], [BTN_TEXT]
-     * @param accentColor the brand color (background for FILLED, stroke+text for OUTLINED, text for TEXT)
-     * @param onAccentColor text/icon color when on accentColor (used for FILLED)
-     */
-    private fun btn(label: String, style: Int, accentColor: Int, onAccentColor: Int, weight: Float, onClick: () -> Unit): MaterialButton {
-        val mb = when (style) {
-            BTN_FILLED -> MaterialButton(this, null, com.google.android.material.R.attr.materialButtonStyle)
-            BTN_OUTLINED -> MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
-            else -> MaterialButton(this, null, android.R.attr.borderlessButtonStyle)
-        }
-        mb.text = label
-        mb.isAllCaps = false
-        mb.textSize = 15f
-        mb.setTypeface(mb.typeface, Typeface.BOLD)
-        mb.cornerRadius = dp(20)
-        when (style) {
-            BTN_FILLED -> {
-                mb.setBackgroundColor(accentColor)
-                mb.setTextColor(onAccentColor)
-            }
-            BTN_OUTLINED -> {
-                mb.strokeColor = android.content.res.ColorStateList.valueOf(accentColor)
-                mb.strokeWidth = dp(2)
-                mb.setTextColor(accentColor)
-                mb.setBackgroundColor(M3.surface(this))
-            }
-            else -> {  // TEXT
-                mb.setTextColor(accentColor)
-                mb.setBackgroundColor(M3.surface(this))
+                OutlinedButton(
+                    onClick = onStop,
+                    modifier = Modifier.weight(1f),
+                    enabled = !isStarting && !isStopping,
+                    shape = MaterialTheme.shapes.large,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = data.onContainer,
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp, data.onContainer.copy(alpha = 0.5f)
+                    ),
+                ) {
+                    if (isStopping) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Text(stringResource(R.string.btn_stop))
+                }
             }
         }
-        mb.setPadding(dp(14), dp(10), dp(14), dp(10))
-        mb.layoutParams = LinearLayout.LayoutParams(
-            if (weight > 0f) 0 else LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            weight
-        ).apply { setMargins(dp(4), dp(6), dp(4), dp(6)) }
-        mb.minimumHeight = dp(48)
-        mb.setOnClickListener { onClick(); refreshSoon() }
-        return mb
+    }
+}
+
+private data class StatusVisuals(
+    val text: String,
+    val icon: ImageVector,
+    val container: Color,
+    val onContainer: Color,
+)
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Setup section
+// ──────────────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun SetupSection(
+    shizukuGranted: Boolean,
+    shizukuAlive: Boolean,
+    accEnabled: Boolean,
+    onGrantShizuku: () -> Unit,
+    onOpenAccessibility: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Text(
+                text = stringResource(R.string.sec_required),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(vertical = 8.dp),
+            )
+
+            SetupRow(
+                icon = Icons.Outlined.Bluetooth,
+                title = stringResource(R.string.row_shizuku),
+                subtitle = stringResource(R.string.row_shizuku_d),
+                statusText = when {
+                    !shizukuAlive -> stringResource(R.string.v_not_running)
+                    shizukuGranted -> stringResource(R.string.v_granted)
+                    else -> stringResource(R.string.v_not_granted)
+                },
+                statusType = when {
+                    !shizukuAlive -> StatusType.ERROR
+                    shizukuGranted -> StatusType.OK
+                    else -> StatusType.WARNING
+                },
+                actionLabel = if (shizukuGranted) null else stringResource(R.string.btn_grant),
+                onAction = onGrantShizuku,
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            SetupRow(
+                icon = Icons.Outlined.VolumeUp,
+                title = stringResource(R.string.row_acc),
+                subtitle = stringResource(R.string.row_acc_d),
+                statusText = if (accEnabled) stringResource(R.string.v_on) else stringResource(R.string.chip_recommended),
+                statusType = if (accEnabled) StatusType.OK else StatusType.WARNING,
+                actionLabel = if (accEnabled) null else stringResource(R.string.btn_open),
+                onAction = onOpenAccessibility,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SetupRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    statusText: String,
+    statusType: StatusType,
+    actionLabel: String?,
+    onAction: () -> Unit,
+) {
+    Column(modifier = Modifier.padding(vertical = 12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            StatusChip(text = statusText, type = statusType)
+        }
+        if (actionLabel != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = onAction) { Text(actionLabel) }
+            }
+        }
+    }
+}
+
+private enum class StatusType { OK, WARNING, ERROR }
+
+@Composable
+private fun StatusChip(text: String, type: StatusType) {
+    val (container, content) = when (type) {
+        StatusType.OK -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
+        StatusType.WARNING -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
+        StatusType.ERROR -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
+    }
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = container,
+        contentColor = content,
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Medium,
+        )
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Customize section
+// ──────────────────────────────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CustomizeSection(
+    customMode: Boolean,
+    customAppCount: Int,
+    multiFocus: String?,
+    shizukuGranted: Boolean,
+    isSwitchingMode: Boolean,
+    isTogglingMf: Boolean,
+    onModeChange: (Boolean) -> Unit,
+    onOpenApps: () -> Unit,
+    onMultiFocusChange: (Boolean) -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.sec_custom),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.tertiary,
+                modifier = Modifier.padding(bottom = 12.dp),
+            )
+
+            // Mode selection
+            Text(
+                text = stringResource(R.string.mode_title),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(bottom = 8.dp),
+            )
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                SegmentedButton(
+                    selected = !customMode,
+                    onClick = { onModeChange(false) },
+                    shape = SegmentedButtonDefaults.itemShape(0, 2),
+                ) {
+                    Text(stringResource(R.string.mode_simple))
+                }
+                SegmentedButton(
+                    selected = customMode,
+                    onClick = { onModeChange(true) },
+                    shape = SegmentedButtonDefaults.itemShape(1, 2),
+                ) {
+                    Text(stringResource(R.string.mode_custom))
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = if (customMode && customAppCount == 0)
+                    stringResource(R.string.mode_custom_empty)
+                else if (customMode)
+                    stringResource(R.string.mode_custom_d)
+                else
+                    stringResource(R.string.mode_simple_d),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            // "Choose output per app" button — only in Custom mode
+            AnimatedVisibility(
+                visible = customMode,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+            ) {
+                Column {
+                    Spacer(Modifier.height(12.dp))
+                    FilledTonalButton(
+                        onClick = onOpenApps,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large,
+                    ) {
+                        Icon(Icons.Filled.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.btn_apps))
+                    }
+                }
+            }
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant,
+                modifier = Modifier.padding(vertical = 12.dp),
+            )
+
+            // Multi-focus switch row
+            ListItem(
+                leadingContent = {
+                    Icon(
+                        Icons.Outlined.MusicVideo,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
+                headlineContent = {
+                    Text(stringResource(R.string.mf_title))
+                },
+                supportingContent = {
+                    Text(
+                        text = when (multiFocus) {
+                            "on" -> stringResource(R.string.mf_desc)
+                            "off" -> stringResource(R.string.mf_off_auto)
+                            "off_user" -> stringResource(R.string.mf_off_user)
+                            else -> stringResource(R.string.mf_desc)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = multiFocus == "on",
+                        onCheckedChange = onMultiFocusChange,
+                        enabled = shizukuGranted && !isTogglingMf,
+                    )
+                },
+            )
+        }
     }
 }
