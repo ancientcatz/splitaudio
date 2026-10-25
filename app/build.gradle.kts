@@ -9,8 +9,8 @@ android {
         applicationId = "app.splitaudio"
         minSdk = 29
         targetSdk = 34
-        versionCode = 8
-        versionName = "0.4.1"
+        versionCode = 9
+        versionName = "0.4.2"
     }
     // Release signing — two entry points:
     //   (1) Local:  RELEASE_SIGNING_JSON=/abs/path/to/signing.json
