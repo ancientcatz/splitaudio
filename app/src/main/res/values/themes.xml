@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Material 3 theme for SplitAudio.
+         Parent: Theme.Material3.DayNight.NoActionBar (light + dark automatically).
+         On Android 12+ the Material library applies the user's dynamic color scheme
+         at runtime via DynamicColors.applyToActivityIfAvailable(). On Android 11 and
+         below, the M3 baseline purple palette defined in colors.xml is used so the
+         app keeps its brand identity. -->
+    <style name="Theme.SplitAudio" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Brand seed colors (used on API <= 30; overridden by dynamic color on API 31+). -->
+        <item name="colorPrimary">@color/m3_primary</item>
+        <item name="colorOnPrimary">@color/m3_on_primary</item>
+        <item name="colorPrimaryContainer">@color/m3_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/m3_on_primary_container</item>
+
+        <item name="colorSecondary">@color/m3_secondary</item>
+        <item name="colorOnSecondary">@color/m3_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/m3_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/m3_on_secondary_container</item>
+
+        <item name="colorTertiary">@color/m3_tertiary</item>
+        <item name="colorOnTertiary">@color/m3_on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/m3_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/m3_on_tertiary_container</item>
+
+        <item name="colorError">@color/m3_error</item>
+        <item name="colorOnError">@color/m3_on_error</item>
+        <item name="colorErrorContainer">@color/m3_error_container</item>
+        <item name="colorOnErrorContainer">@color/m3_on_error_container</item>
+
+        <item name="android:colorBackground">@color/m3_background</item>
+        <item name="colorOnBackground">@color/m3_on_background</item>
+        <item name="colorSurface">@color/m3_surface</item>
+        <item name="colorOnSurface">@color/m3_on_surface</item>
+        <item name="colorSurfaceVariant">@color/m3_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/m3_on_surface_variant</item>
+        <item name="colorSurfaceContainer">@color/m3_surface_container</item>
+        <item name="colorSurfaceContainerHigh">@color/m3_surface_container_high</item>
+        <item name="colorOutline">@color/m3_outline</item>
+        <item name="colorOutlineVariant">@color/m3_outline_variant</item>
+
+        <!-- Edge-to-edge: let the app draw its own insets. -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <!-- Variant used as the manifest application theme. Same as Theme.SplitAudio. -->
+    <style name="Theme.SplitAudio.App" parent="Theme.SplitAudio" />
+</resources>

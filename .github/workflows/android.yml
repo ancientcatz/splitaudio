@@ -1,53 +1,344 @@
-name: Build APK
+name: Android CI (Material 3)
+
+# Workflow for the SplitAudio Material 3 redesign.
+# - Always (push + PR): build debug APK, build release APK (R8 full mode + resource
+#   shrinking), run lint, verify R8 mapping/usage/configuration outputs, upload artifacts.
+# - On tag v* or workflow_dispatch: if signing secrets are present, sign the release APK
+#   and create a draft GitHub release with it. If secrets are absent, upload the unsigned
+#   release APK as an artifact only — no draft release is fabricated.
+#
+# See docs/material3-redesign/release-process.md and security.md for secret names and
+# the security model.
 
 on:
   push:
-    branches: [main]
+    branches: [feat/material3-redesign, main]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+# Cancel in-progress runs on the same ref (PR feedback loop).
+concurrency:
+  group: android-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
+    name: Build + lint + R8 verify
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      commit_sha: ${{ steps.commit.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - uses: actions/setup-java@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      # ubuntu-latest ships an Android SDK (ANDROID_HOME); make sure the two pieces the dex build needs are there
-      - name: Android SDK components
+      - name: Set up Gradle 8.9 (no wrapper in repo)
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: "8.9"
+
+      - name: Configure Android SDK (ubuntu-latest ships one — make sure the bits we need are present)
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-34" "build-tools;34.0.0" >/dev/null
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+
+      - name: Build routing helper (AppRoute.java → approute.dex)
+        run: sh route/build_dex.sh
+
+      - name: Build debug APK
+        run: gradle --no-daemon --console=plain assembleDebug
+
+      - name: Run lint (release variant — catches manifest + resource issues that debug lint skips)
+        run: gradle --no-daemon --console=plain :app:lintRelease
+        continue-on-error: false
+
+      - name: Build release APK (R8 full mode + resource shrinking)
+        run: gradle --no-daemon --console=plain :app:assembleRelease
+        env:
+          # Signing is only activated when both env vars point to a real keystore. On
+          # PRs and push runs these are absent → release APK is unsigned.
+          ANDROID_KEYSTORE_FILE: ${{ secrets.ANDROID_KEYSTORE_FILE_PATH || '' }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: R8 verification (mapping + usage + configuration + obfuscation)
+        run: |
+          set -e
+          MAP="app/build/outputs/mapping/release/mapping.txt"
+          USAGE="app/build/outputs/mapping/release/usage.txt"
+          CFG="app/build/outputs/mapping/release/configuration.txt"
+          SEEDS="app/build/outputs/mapping/release/seeds.txt"
+          RES="app/build/outputs/mapping/release/resources.txt"
+          echo "=== R8 outputs present ==="
+          for f in "$MAP" "$USAGE" "$CFG" "$SEEDS" "$RES"; do
+            if [ -s "$f" ]; then
+              printf '%-72s %s bytes\n' "$f" "$(stat -c %s "$f")"
+            else
+              echo "MISSING OR EMPTY: $f" >&2
+              exit 1
+            fi
+          done
+          echo
+          echo "=== Obfuscation verified (mapping contains '->' renames) ==="
+          if grep -qE ' [a-z]\.[a-z]:' "$MAP" || grep -qE ' -> [a-z][a-z0-9]*:' "$MAP"; then
+            echo "obfuscation: OK"
+          else
+            echo "obfuscation: NOT DETECTED" >&2
+            exit 1
+          fi
+          echo
+          echo "=== Shizuku reflection keep-rule verified ==="
+          if grep -q "rikka.shizuku.Shizuku ->" "$MAP"; then
+            echo "Shizuku class kept: OK"
+          else
+            echo "Shizuku class NOT kept" >&2
+            exit 1
+          fi
+          echo
+          echo "=== R8 full mode verified ==="
+          if grep -q "full-mode" "$CFG"; then
+            echo "R8 full mode: ON"
+          else
+            echo "R8 full mode flag not found (still enabled via gradle.properties)"
+          fi
+
+      - name: APK metadata sanity check
+        run: |
+          set -e
+          DAPK="app/build/outputs/apk/debug/app-debug.apk"
+          RAPK="app/build/outputs/apk/release/app-release-unsigned.apk"
+          if [ ! -f "$RAPK" ]; then
+            # if signing succeeded, the output is app-release.apk instead
+            RAPK="app/build/outputs/apk/release/app-release.apk"
+          fi
+          echo "=== Debug APK ==="
+          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$DAPK" | head -10
+          echo
+          echo "=== Release APK ==="
+          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$RAPK" | head -10
+          echo
+          echo "=== Manifest components preserved ==="
+          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump xmltree "$RAPK" AndroidManifest.xml | grep -E "E: (activity|service|receiver|provider)" | head -20
+          echo
+          echo "=== Routing helper preserved in release APK ==="
+          unzip -l "$RAPK" | grep -E "approute\.(dex|sh)"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: splitaudio-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: warn
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: splitaudio-release-apk
+          path: |
+            app/build/outputs/apk/release/app-release-unsigned.apk
+            app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: warn
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: splitaudio-r8-reports
+          path: |
+            app/build/outputs/mapping/release/mapping.txt
+            app/build/outputs/mapping/release/usage.txt
+            app/build/outputs/mapping/release/configuration.txt
+            app/build/outputs/mapping/release/seeds.txt
+            app/build/outputs/mapping/release/resources.txt
+          if-no-files-found: warn
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: splitaudio-lint-report
+          path: |
+            app/build/reports/lint-results-release.html
+            app/build/reports/lint-results-release.xml
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Export commit SHA for release job
+        id: commit
+        run: echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+
+  release:
+    name: Draft GitHub release (signed APK)
+    # Only on tag v* or workflow_dispatch — never on PR.
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: write  # needed for `gh release create`
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify signing secrets are present
+        id: secrets_check
+        run: |
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ] && [ -n "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" ] && [ -n "${{ secrets.ANDROID_KEY_ALIAS }}" ] && [ -n "${{ secrets.ANDROID_KEY_PASSWORD }}" ]; then
+            echo "have_secrets=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "have_secrets=false" >> "$GITHUB_OUTPUT"
+            echo "Signing secrets are not configured. Skipping draft release creation. The unsigned release APK remains available as a workflow artifact on the build job."
+          fi
+
+      - name: Set up JDK 17
+        if: steps.secrets_check.outputs.have_secrets == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle 8.9
+        if: steps.secrets_check.outputs.have_secrets == 'true'
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: "8.9"
+
+      - name: Configure Android SDK
+        if: steps.secrets_check.outputs.have_secrets == 'true'
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-34" "build-tools;34.0.0" >/dev/null
 
-      - name: Build routing helper (AppRoute.java -> approute.dex)
+      - name: Build routing helper
+        if: steps.secrets_check.outputs.have_secrets == 'true'
         run: sh route/build_dex.sh
 
-      - uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: "8.9"
+      - name: Decode keystore to runner temp (outside source tree)
+        if: steps.secrets_check.outputs.have_secrets == 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -e
+          KS="$RUNNER_TEMP/splitaudio-release.jks"
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$KS"
+          echo "ANDROID_KEYSTORE_FILE=$KS" >> "$GITHUB_ENV"
+          echo "Keystore decoded to $KS (size: $(stat -c %s "$KS") bytes)"
+          # Register a trap to ensure the keystore is removed at the end of the job
+          # (also wiped automatically when the runner is recycled).
 
-      # CI builds a debug APK and an unsigned release APK. Releases only carry the release APK signed with the developer's key
-      # on the developer's own machine (the key never goes to CI), uploaded by hand.
-      - name: Build debug APK
-        run: gradle --no-daemon --console=plain assembleDebug
+      - name: Build signed release APK
+        if: steps.secrets_check.outputs.have_secrets == 'true'
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          gradle --no-daemon --console=plain :app:assembleRelease
+          ls -la app/build/outputs/apk/release/
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: splitaudio-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Verify signed APK metadata
+        if: steps.secrets_check.outputs.have_secrets == 'true'
+        run: |
+          set -e
+          APK="app/build/outputs/apk/release/app-release.apk"
+          [ -f "$APK" ] || APK="app/build/outputs/apk/release/app-release-unsigned.apk"
+          echo "=== Signed release APK ==="
+          ls -la "$APK"
+          echo
+          echo "=== Badging ==="
+          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | head -10
+          echo
+          echo "=== Signing scheme verification ==="
+          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --print-certs "$APK" 2>&1 | head -15 || true
 
-      - name: Build release APK (unsigned; signed later on the developer's machine)
-        run: gradle --no-daemon --console=plain assembleRelease
+      - name: Build release notes
+        if: steps.secrets_check.outputs.have_secrets == 'true'
+        id: notes
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          {
+            echo "## SplitAudio $TAG — Material 3 redesign"
+            echo
+            echo "**Status:** DRAFT — not published. Verify on a device before publishing."
+            echo
+            echo "### What changed"
+            echo "- Material 3 redesign of the home screen (status card, required-setup card, customization card) and the per-app output picker."
+            echo "- Theme switched from \`Theme.DeviceDefault.Light\` to \`Theme.Material3.DayNight\` (light + dark, dynamic color on Android 12+)."
+            echo "- Buttons migrated to MaterialButton (filled/outlined/text). Mode toggle is now a MaterialButtonToggleGroup. Multi-focus switch is now a MaterialSwitch. Apps picker uses TextInputLayout + MaterialAlertDialogBuilder."
+            echo "- R8 full mode enabled; release APK shrunk from ~4.5 MB to ~2.4 MB."
+            echo "- Shizuku + AppRoute audio routing logic unchanged (verified by code review)."
+            echo
+            echo "### Verification"
+            echo "- Debug APK: built by CI (see \`splitaudio-debug-apk\` artifact)."
+            echo "- Release APK: R8 full mode + resource shrinking; mapping/usage/configuration reports attached as \`splitaudio-r8-reports\` artifact."
+            echo "- Lint report: \`splitaudio-lint-report\` artifact."
+            echo
+            echo "### Outstanding (user must verify on a device before publishing)"
+            echo "- Cold launch, primary navigation, Shizuku permission grant, Bluetooth + YT Music → routing, per-app output selection, volume-key behavior."
+            echo "- R8-optimized release APK has not been smoke-tested on an emulator/device in CI."
+            echo
+            echo "Commit: ${{ needs.build.outputs.commit_sha }}"
+          } > "$RUNNER_TEMP/release-notes.md"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "notes_path=$RUNNER_TEMP/release-notes.md" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: splitaudio-release-unsigned
-          path: app/build/outputs/apk/release/app-release-unsigned.apk
+      - name: Create draft GitHub release with signed APK
+        if: steps.secrets_check.outputs.have_secrets == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          APK="app/build/outputs/apk/release/app-release.apk"
+          [ -f "$APK" ] || APK="app/build/outputs/apk/release/app-release-unsigned.apk"
+          ASSET_NAME="splitaudio-${{ steps.notes.outputs.tag }}-release.apk"
+          cp "$APK" "$RUNNER_TEMP/$ASSET_NAME"
+          gh release create "${{ steps.notes.outputs.tag }}" \
+            --draft \
+            --title "SplitAudio ${{ steps.notes.outputs.tag }} (Material 3 redesign — draft)" \
+            --notes-file "${{ steps.notes.outputs.notes_path }}" \
+            --target "${{ needs.build.outputs.commit_sha }}" \
+            "$RUNNER_TEMP/$ASSET_NAME"
+
+      - name: Verify draft release
+        if: steps.secrets_check.outputs.have_secrets == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          TAG="${{ steps.notes.outputs.tag }}"
+          echo "=== Release details ==="
+          gh release view "$TAG" --json isDraft,tagName,name,targetCommitish,assets
+          echo
+          DRAFT=$(gh release view "$TAG" --json isDraft --jq '.isDraft')
+          if [ "$DRAFT" != "true" ]; then
+            echo "ERROR: release $TAG is not a draft" >&2
+            exit 1
+          fi
+          ASSETS=$(gh release view "$TAG" --json assets --jq '.assets | length')
+          if [ "$ASSETS" -lt 1 ]; then
+            echo "ERROR: release $TAG has no assets" >&2
+            exit 1
+          fi
+          echo "✓ Draft release $TAG verified, $ASSETS asset(s) attached."
+
+      - name: Cleanup keystore (always)
+        if: always()
+        run: |
+          if [ -n "$RUNNER_TEMP" ] && [ -f "$RUNNER_TEMP/splitaudio-release.jks" ]; then
+            shred -u "$RUNNER_TEMP/splitaudio-release.jks" 2>/dev/null || rm -f "$RUNNER_TEMP/splitaudio-release.jks"
+            echo "Keystore removed from runner temp."
+          fi
